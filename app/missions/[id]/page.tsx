@@ -10,7 +10,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const m = missions.find((item) => item.id === id);
-  return { title: m ? m.place + " · JuniorAstronaut" : "JuniorAstronaut" };
+  return { title: m ? m.place + " · MoonSprout" : "MoonSprout" };
 }
 export default async function MissionPage({ params }: Props) {
   const { id } = await params;

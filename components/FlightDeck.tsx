@@ -56,7 +56,7 @@ import {
 } from "./SpaceWeather";
 
 // The title shows once per browser tab, so coming back to the map is instant.
-const startedKey = "JuniorAstronaut.started";
+const startedKey = "MoonSprout.started";
 const titleListeners = new Set<() => void>();
 const titleStore = {
   subscribe(f: () => void) {
@@ -159,7 +159,7 @@ export default function FlightDeck() {
     device.hold(null);
     if (titleSeen)
       device.screen("Mission map", rank.total + "/" + maxStars + " stars");
-    else device.screen("JuniorAstronaut", "Press A to start");
+    else device.screen("MoonSprout", "Press A to start");
   }, [titleSeen, rank.total]);
   const begin = () => {
     titleStore.dismiss();

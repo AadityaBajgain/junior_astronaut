@@ -210,7 +210,7 @@ export function Dialog({
 
 export function Brand() {
   return (
-    <span className="brand" aria-label="JuniorAstronaut">
+    <span className="brand" aria-label="MoonSprout">
       <span className="brand-mark">
         <Rocket size={24} />
       </span>

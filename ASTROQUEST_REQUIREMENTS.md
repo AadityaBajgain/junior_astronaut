@@ -1,4 +1,4 @@
-# JuniorAstronaut — clean-start product brief
+# MoonSprout — clean-start product brief
 Audience: children aged 7–12. Product: a browser game for the NASA Space Apps Junior Astronaut Mission Trainer challenge. Treat Go → Land → Live → Explore as the organizing theme. The goal is for a child to make a choice, see its effect in the world, and explain one tradeoff in their own words.
 
 ## 1. Non-negotiable experience
@@ -51,7 +51,7 @@ Use Next.js App Router, React, TypeScript, Tailwind CSS and a compatible stable 
 
 Persist preferences and versioned progress locally. Validate saves; recover from corrupt or unavailable storage. Reloading or closing the tab cannot deplete resources. Keep API keys server-side; never commit secrets. Maintain source manifests, reviewed fixtures, architecture decisions and a feature/test ledger.
 
-Deliver a complete local project with a lockfile, supported Node version and README. A clean installation must work with npm ci and npm run dev. Before modifying the existing Desktop/nasa project, create a separate sibling folder such as Desktop/JuniorAstronaut-Rebuild. Preserve the old project. Vercel preview and production are later milestones; do not deploy as part of the restart.
+Deliver a complete local project with a lockfile, supported Node version and README. A clean installation must work with npm ci and npm run dev. Before modifying the existing Desktop/nasa project, create a separate sibling folder such as Desktop/MoonSprout-Rebuild. Preserve the old project. Vercel preview and production are later milestones; do not deploy as part of the restart.
 
 ## 7. Build order and acceptance
 1. Foundation and title screen: a Phaser-backed mission selector, NOVA, settings and accessible navigation. Honest availability labels. Review before proceeding.

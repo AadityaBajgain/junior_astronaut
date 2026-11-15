@@ -259,7 +259,7 @@ export default function Outpost() {
     >
       <header className="topbar">
         <div className="wrap top-inner">
-          <Link href="/" aria-label="JuniorAstronaut mission map">
+          <Link href="/" aria-label="MoonSprout mission map">
             <Brand />
           </Link>
           <div className="toolbar">

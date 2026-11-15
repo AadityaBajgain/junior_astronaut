@@ -23,10 +23,13 @@ async function actAt(page: Page, spot: string, next: number) {
   await expect(field(page)).toHaveAttribute("data-turn", String(next));
 }
 async function point(page: Page, x: number, y: number) {
-  const canvas = page.locator("canvas");
-  await canvas.scrollIntoViewIfNeeded();
-  const box = (await canvas.boundingBox())!;
-  return { x: box.x + box.width * x, y: box.y + box.height * y };
+  const box = (await page.locator(".mission-stage").boundingBox())!;
+  const width = Math.min(box.width, (box.height * 850) / 300);
+  const height = Math.min(box.height, box.width);
+  return {
+    x: box.x + box.width / 2 + width * (x - 0.5),
+    y: box.y + box.height / 2 + height * (y - 0.5),
+  };
 }
 
 test("four map islands enter four Moon missions; a finished task shows a credited NASA photo and fact", async ({
@@ -228,8 +231,8 @@ test("phone touch, larger words and archived field notes work with external traf
     .toBe(true);
   await ctx.close();
 });
-
-test("invalid or unavailable saves still allow play", async ({ page }) => {
+MoonSprout
+test("invalid or unavailabMoonSproutallow play", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("JuniorAstronaut.room.v1.go", "{");
     localStorage.setItem("JuniorAstronaut.map.v1", "??");
@@ -304,10 +307,15 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/missions\/go$/);
   await ready(page);
-  const hold = async (key: string, ms: number) => {
+  const walkTo = async (key: string, action: string) => {
     await page.keyboard.down(key);
-    await page.waitForTimeout(ms);
-    await page.keyboard.up(key);
+    try {
+      await expect(page.locator("canvas")).toHaveAccessibleDescription(
+        `${action}. Press Space or the A button.`,
+      );
+    } finally {
+      await page.keyboard.up(key);
+    }
   };
   // The controller display announces the level, then each action and its result.
   const lcd = page.locator(".lcd-screen");
@@ -321,7 +329,7 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
     "data-green",
     "true",
   );
-  await hold("a", 1700);
+  await walkTo("a", "Pack air");
   await page.keyboard.press("Space"); // air tank
   await expect(field(page)).toHaveAttribute("data-turn", "2");
   await expect(page.locator(".fact-toast")).toContainText("3 astronauts");
@@ -330,7 +338,7 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
   await page.keyboard.press("Space"); // nothing left to do there: red light
   await expect(lcd).toContainText("Not yet!");
   await expect(page.locator(".lcd-mirror")).toHaveAttribute("data-red", "true");
-  await hold("ArrowRight", 3300);
+  await walkTo("ArrowRight", "Pump fuel");
   for (const turn of [4, 5, 6]) {
     await page.keyboard.press("Space"); // pump fuel
     await expect(field(page)).toHaveAttribute("data-turn", String(turn));
@@ -536,7 +544,7 @@ test("the final mission stays hidden until all four missions are finished", asyn
   );
   await expect(page.locator(".outpost-card")).toHaveCount(0);
   // The map fills the whole window.
-  const box = (await page.locator("canvas").boundingBox())!;
+  constMoonSproutage.locator("canvas").boundingBox())!;
   const size = page.viewportSize()!;
   expect(box.width).toBe(size.width);
   expect(box.height).toBe(size.height);
@@ -561,4 +569,38 @@ test("the final mission stays hidden until all four missions are finished", asyn
   await expect(card).toBeVisible();
   await card.click();
   await expect(page).toHaveURL(/\/outpost$/);
+});
+
+test("all four worlds fill the viewport behind reachable mission controls", async ({
+  page,
+}) => {
+  for (const size of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+    { width: 375, height: 667 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(size);
+    for (const mission of missions) {
+      await page.goto("/missions/" + mission.id);
+      await ready(page);
+      const canvas = page.locator("canvas");
+      await expect
+        .poll(() => canvas.boundingBox())
+        .toEqual({ x: 0, y: 0, ...size });
+      const action = page.locator(".station-action").first();
+      await expect(action).toBeInViewport({ ratio: 1 });
+      await expect(
+        page.getByRole("button", { name: "Settings" }),
+      ).toBeInViewport({ ratio: 1 });
+      await action.click({ trial: true });
+      const p = await point(page, 0.18, 0.68);
+      expect(
+        await page.evaluate(
+          ({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+          p,
+        ),
+      ).toBe("CANVAS");
+    }
+  }
 });

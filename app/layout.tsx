@@ -14,13 +14,13 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL(site),
   title: {
-    default: "JuniorAstronaut · Mission map",
+    default: "MoonSprout · Mission map",
     template: "%s",
   },
   description,
-  applicationName: "JuniorAstronaut",
+  applicationName: "MoonSprout",
   openGraph: {
-    title: "JuniorAstronaut",
+    title: "MoonSprout",
     description,
     type: "website",
     images: [

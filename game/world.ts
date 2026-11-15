@@ -53,13 +53,14 @@ export type WorldHandle = {
 
 export function startWorld(
   host: HTMLElement,
+  stage: HTMLElement,
   id: MissionId,
   hooks: Hooks,
 ): WorldHandle {
   const fitWidth = () =>
     Math.round(
       clamp(
-        (height * host.clientWidth) / Math.max(1, host.clientHeight),
+        (height * stage.clientWidth) / Math.max(1, stage.clientHeight),
         300,
         850,
       ),
@@ -195,16 +196,18 @@ export function startWorld(
       this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
         if (paused) return;
         canvas.focus({ preventScroll: true });
-        const target = this.hit(p.x, p.y);
+        const { x, y } = this.cameras.main.getWorldPoint(p.x, p.y);
+        const target = this.hit(x, y);
         if (target) this.visit(target);
-        else if (p.y > height * 0.45 && !this.busy()) {
+        else if (y > height * 0.45 && !this.busy()) {
           this.target = null;
           this.via = null;
-          this.destination = this.bound(p.x, p.y);
+          this.destination = this.bound(x, y);
         }
       });
       this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-        this.pointAt = this.hit(p.x, p.y);
+        const { x, y } = this.cameras.main.getWorldPoint(p.x, p.y);
+        this.pointAt = this.hit(x, y);
         canvas.style.cursor = this.pointAt ? "pointer" : "crosshair";
       });
       this.events.once("shutdown", () => {
@@ -249,9 +252,29 @@ export function startWorld(
     }
     arrange() {
       if (!this.started) return;
-      const sc = Math.max(width / this.sky.width, height / this.sky.height);
-      this.sky.setPosition(width / 2, height / 2).setScale(sc);
-      this.shade.setDisplaySize(width, height);
+      // The landscape reaches the screen edges. World coordinates stay inside the
+      // space between the HUD and the action buttons, even when their text wraps.
+      const area = stage.getBoundingClientRect();
+      const frame = host.getBoundingClientRect();
+      const zoom = Math.min(area.width / width, area.height / height);
+      if (!zoom) return;
+      const left = area.left - frame.left + (area.width - width * zoom) / 2;
+      const top = area.top - frame.top + (area.height - height * zoom) / 2;
+      this.cameras.main
+        .setOrigin(0, 0)
+        .setZoom(zoom)
+        .setScroll(-left / zoom, -top / zoom);
+      const viewW = frame.width / zoom,
+        viewH = frame.height / zoom;
+      this.sky
+        .setPosition(
+          (frame.width / 2 - left) / zoom,
+          (frame.height / 2 - top) / zoom,
+        )
+        .setScale(Math.max(viewW / this.sky.width, viewH / this.sky.height));
+      this.shade
+        .setPosition(-left / zoom, -top / zoom)
+        .setDisplaySize(viewW, viewH);
       this.destination = this.via = null;
       this.target = null;
       this.pos = this.bound(this.pos.x, this.pos.y);
@@ -978,6 +1001,12 @@ export function startWorld(
       this.buddy.setVisible(false);
       // A bouncing button hint floats over the thing the A button would use.
       const hint = this.target || this.busy() ? null : nearest;
+      const action = labels.find((station) => station.spot === hint);
+      const description = action
+        ? `${action.label}. Press Space or the A button.`
+        : null;
+      if (this.game.canvas.ariaDescription !== description)
+        this.game.canvas.ariaDescription = description;
       if (hint) {
         const top =
           hint === "photo"
@@ -1047,9 +1076,9 @@ export function startWorld(
     parent: host,
     backgroundColor: "#182537",
     scene: room,
-    width,
-    height,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    width: host.clientWidth,
+    height: host.clientHeight,
+    scale: { mode: Phaser.Scale.NONE },
     render: { pixelArt: true, roundPixels: true },
     audio: { noAudio: true },
     // Taps on dialogs and buttons outside the canvas must never reach the scene.
@@ -1059,15 +1088,19 @@ export function startWorld(
   });
   const observer = new ResizeObserver(() => {
     const next = fitWidth();
-    if (next === width) return;
     const fraction = room.pos.x / width;
     width = next;
     room.pos.x = fraction * width;
-    game.scale.setGameSize(width, height);
+    if (
+      game.scale.width !== host.clientWidth ||
+      game.scale.height !== host.clientHeight
+    )
+      game.scale.resize(host.clientWidth, host.clientHeight);
     room.arrange();
     if (room.started) room.paint(false);
   });
   observer.observe(host);
+  observer.observe(stage);
   return {
     travel: (t) => room.visit(t),
     jump: () => room.jump(),

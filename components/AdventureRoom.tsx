@@ -252,6 +252,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
   const [status, setStatus] = useState("loading");
   const [report, setReport] = useState<WeatherReport | null>(null);
   const host = useRef<HTMLDivElement>(null),
+    stage = useRef<HTMLDivElement>(null),
     world = useRef<WorldHandle | null>(null);
   const paused = useRef(false);
   const profile = useProfile();
@@ -365,8 +366,8 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
     let disposed = false;
     void import("../game/world")
       .then(({ startWorld }) => {
-        if (disposed || !host.current) return;
-        world.current = startWorld(host.current, id, {
+        if (disposed || !host.current || !stage.current) return;
+        world.current = startWorld(host.current, stage.current, id, {
           state: store.get,
           activate,
           jumped: () => {
@@ -417,12 +418,15 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
     nextLabel = next ? "Go to " + next.place : "Final mission: Outpost";
   return (
     <div
-      className={"flight-deck room" + (state.prefs.largeText ? " large" : "")}
+      className={
+        "flight-deck room mission-room" +
+        (state.prefs.largeText ? " large" : "")
+      }
       style={{ "--room-color": m.color } as CSSProperties}
     >
       <header className="topbar">
         <div className="wrap top-inner">
-          <Link href="/" aria-label="JuniorAstronaut mission map">
+          <Link href="/" aria-label="MoonSprout mission map">
             <Brand />
           </Link>
           <div className="toolbar">
@@ -457,13 +461,13 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           <button className="photo-button" onClick={openPhoto}>
             <Camera size={18} />
             <span>
-              Fact cards{" "}
+              <span className="fact-label">Fact cards </span>
               {cardsFor(id).filter((c) => profile.cards.includes(c.id)).length}/
               {cardsFor(id).length}
             </span>
           </button>
         </div>
-        <div className="game-case">
+        <div className="mission-world">
           <div className="game-strip">
             <span className="goal">
               <Flag size={15} />
@@ -506,9 +510,13 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
               </div>
             )}
           </div>
-          {toast && cardById(toast) && !panel && (
-            <FactToast card={cardById(toast)!} />
-          )}
+          <div className="mission-stage" ref={stage}>
+            {toast && cardById(toast) && !panel && (
+              <FactToast card={cardById(toast)!} />
+            )}
+          </div>
+        </div>
+        <div className="mission-console">
           <div className="dialogue-bar">
             <div className="nova-portrait">
               <Image
@@ -532,69 +540,69 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
               <CircleHelp size={19} />
             </button>
           </div>
+          <section className="action-row" aria-label="Astronaut actions">
+            {options.map((option) => {
+              const Icon =
+                icons[id][["left", "middle", "right"].indexOf(option.spot)];
+              return (
+                <button
+                  className="station-action"
+                  key={option.spot}
+                  data-spot={option.spot}
+                  disabled={status !== "ready"}
+                  onClick={() => world.current?.travel(option.spot)}
+                >
+                  <span className="action-icon">
+                    <Icon size={23} />
+                  </span>
+                  <span>
+                    <b>{option.label}</b>
+                    <small>{option.hint}</small>
+                  </span>
+                  <ChevronRight size={15} />
+                </button>
+              );
+            })}
+            {run.done && (
+              <>
+                <button className="station-action" onClick={restart}>
+                  <RotateCcw size={21} />
+                  <b>Play again</b>
+                </button>
+                <button
+                  className="station-action"
+                  onClick={() => setPanel("result")}
+                >
+                  <Award size={21} />
+                  <b>See my stars</b>
+                </button>
+                <Link className="next-mission" href={nextHref}>
+                  {nextLabel}
+                  <ArrowRight size={18} />
+                </Link>
+              </>
+            )}
+          </section>
+          {id === "explore" &&
+            run.id === "explore" &&
+            run.samples > 0 &&
+            !run.done && (
+              <button className="radio-link" onClick={openPhoto}>
+                <Radio size={16} /> Space weather ·{" "}
+                {report?.kind === "catalog" ? "NASA report" : "NASA archive"} ·{" "}
+                {(report?.event ?? historicalEvent).time.slice(0, 10)}{" "}
+                <ChevronRight size={14} />
+              </button>
+            )}
+          <Hints
+            items={[
+              ["move", "Walk"],
+              ["a", "Use"],
+              ["x", "Jump"],
+              ["b", "Menu"],
+            ]}
+          />
         </div>
-        <section className="action-row" aria-label="Astronaut actions">
-          {options.map((option) => {
-            const Icon =
-              icons[id][["left", "middle", "right"].indexOf(option.spot)];
-            return (
-              <button
-                className="station-action"
-                key={option.spot}
-                data-spot={option.spot}
-                disabled={status !== "ready"}
-                onClick={() => world.current?.travel(option.spot)}
-              >
-                <span className="action-icon">
-                  <Icon size={23} />
-                </span>
-                <span>
-                  <b>{option.label}</b>
-                  <small>{option.hint}</small>
-                </span>
-                <ChevronRight size={15} />
-              </button>
-            );
-          })}
-          {run.done && (
-            <>
-              <button className="station-action" onClick={restart}>
-                <RotateCcw size={21} />
-                <b>Play again</b>
-              </button>
-              <button
-                className="station-action"
-                onClick={() => setPanel("result")}
-              >
-                <Award size={21} />
-                <b>See my stars</b>
-              </button>
-              <Link className="next-mission" href={nextHref}>
-                {nextLabel}
-                <ArrowRight size={18} />
-              </Link>
-            </>
-          )}
-        </section>
-        {id === "explore" &&
-          run.id === "explore" &&
-          run.samples > 0 &&
-          !run.done && (
-            <button className="radio-link" onClick={openPhoto}>
-              <Radio size={16} /> Space weather ·{" "}
-              {report?.kind === "catalog" ? "NASA report" : "NASA archive"} ·{" "}
-              {(report?.event ?? historicalEvent).time.slice(0, 10)}{" "}
-              <ChevronRight size={14} />
-            </button>
-          )}
-        <Hints
-          items={[
-            ["move", "Walk"],
-            ["a", "Use"],
-            ["x", "Jump"],
-            ["b", "Menu"],
-          ]}
-        />
       </main>
       {panel === "result" && (
         <Dialog title="Mission complete!" close={close}>
