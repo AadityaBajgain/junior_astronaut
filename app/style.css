@@ -342,6 +342,8 @@ h1 {
 .playfield canvas {
   display: block;
   touch-action: none;
+  /* On very wide screens the scene sits in the middle and the sides dim. */
+  box-shadow: 0 0 0 100vmax #0a1220d9;
 }
 .playfield canvas:focus-visible {
   outline-offset: -4px;
@@ -928,14 +930,94 @@ dialog a:focus-visible {
 dialog .primary:focus-visible {
   background: #ffe3a3;
 }
+.live-tag,
+.real-tag {
+  font: normal 8px/1 var(--pixel);
+  color: #172232;
+  background: #ff9f6b;
+  border-radius: 3px;
+  padding: 3px 5px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.real-tag {
+  background: var(--mint);
+}
+.weather-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  line-height: 1.45;
+}
+.weather-strip svg {
+  color: var(--mint);
+}
+.weather-chip {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid #41516a;
+  border-radius: 8px;
+  background: #132032;
+  font-size: 0.9em;
+}
+.weather-chip:hover,
+.weather-chip:focus-visible {
+  border-color: var(--mint);
+}
+.big-reading {
+  font-size: 1.25em;
+  font-weight: 700;
+}
+.weather-card a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--mint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 0.85em;
+}
+.fact-card {
+  padding: 10px 12px;
+  border: 1px dashed var(--mint);
+  border-radius: 6px;
+  background: #10202c;
+  font-size: 0.92em;
+}
+.fact-card a {
+  color: var(--mint);
+  text-decoration: underline;
+  white-space: nowrap;
+}
 /* Outpost Commander */
+.oops {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+.outpost-scene canvas {
+  box-shadow: 0 0 0 100vmax #0a1220d9;
+}
+.outpost-scene {
+  height: clamp(190px, 30vh, 340px);
+  background: #131c30 url("/art/world/land.webp") center / cover;
+  overflow: hidden;
+}
+.outpost-scene canvas {
+  display: block;
+}
 .outpost-sky {
   display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  background:
-    linear-gradient(#0d1524cc, #1b2740e6),
-    url("/art/world/land.webp") center 30% / cover;
+  gap: 4px;
+  padding: 10px 16px;
+  background: #162238;
+  font-size: 0.92em;
 }
 .forecast,
 .spark-bank {
@@ -1095,6 +1177,76 @@ dialog .primary:focus-visible {
   .hints {
     gap: 6px 12px;
     font-size: 0.74em;
+  }
+}
+/* The game fills the whole window on anything bigger than a phone. */
+@media (min-width: 761px) and (min-height: 600px) {
+  .wrap {
+    width: min(1800px, calc(100% - 48px));
+  }
+  .flight-deck {
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .flight-deck > main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .hub-main {
+    padding: 16px 0 14px;
+  }
+  .hub-heading {
+    margin-bottom: 12px;
+  }
+  .chart-frame {
+    flex: 1;
+    min-height: 220px;
+    display: flex;
+  }
+  .chart {
+    flex: 1;
+    height: auto;
+  }
+  .room-main {
+    padding: 10px 0 12px;
+  }
+  .game-case {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .playfield {
+    flex: 1;
+    height: auto;
+    min-height: 200px;
+  }
+  .hints {
+    margin-top: 10px;
+  }
+  .action-row {
+    margin-top: 10px;
+  }
+  .outpost .game-case {
+    overflow: auto;
+  }
+  .outpost .system-list {
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    align-content: center;
+  }
+  .outpost .end-sol {
+    grid-column: 1 / -1;
+  }
+  .outpost .dialogue-bar {
+    display: none;
+  }
+  .outpost .room-heading .back-link {
+    display: none;
   }
 }
 @container (max-width:679px) {

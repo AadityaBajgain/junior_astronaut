@@ -1,5 +1,31 @@
-// Outpost Commander: six player-advanced sols at a small Moon base.
-// All numbers are game units chosen for play. They are not NASA engineering values.
+// Outpost Commander: six player-advanced days at a small Moon base.
+// The Sun storms replay real NASA DONKI records from May 8–13, 2024. Sparks,
+// hearts, food and sunlight amounts are game units, not NASA engineering values.
+import week from "../data/storm-week.json";
+
+const dates = [
+  "2024-05-08",
+  "2024-05-09",
+  "2024-05-10",
+  "2024-05-11",
+  "2024-05-12",
+  "2024-05-13",
+];
+// Game sunlight: on a low-Sun day a crater rim shades the panels.
+const sunlight = [4, 4, 2, 2, 4, 2];
+const isModel = (instrument: string) => /^MODEL/i.test(instrument);
+/** A day is a storm day only when an instrument, not a model, recorded particles. */
+export const sols = dates.map((date, i) => {
+  const records = week.events.filter((e) => e.time.startsWith(date));
+  const measured = records.filter((e) => !isModel(e.instrument));
+  return {
+    date,
+    sun: sunlight[i],
+    storm: measured.length > 0,
+    modelOnly: measured.length === 0 && records.length > 0,
+    record: measured[0] ?? null,
+  };
+});
 export const systems = [
   {
     id: "air",
@@ -13,7 +39,7 @@ export const systems = [
     name: "Greenhouse",
     max: 2,
     art: "bed",
-    does: "Each spark grows 1 food. The crew eats 1 food every sol.",
+    does: "Each spark grows 1 food. The crew eats 1 food every day.",
   },
   {
     id: "shield",
@@ -34,14 +60,6 @@ export type SystemId = (typeof systems)[number]["id"];
 export type Plan = Record<SystemId, number>;
 export const emptyPlan: Plan = { air: 0, farm: 0, shield: 0, lab: 0 };
 
-export const sols = [
-  { sun: 4, storm: false },
-  { sun: 4, storm: true },
-  { sun: 2, storm: false },
-  { sun: 2, storm: true },
-  { sun: 4, storm: false },
-  { sun: 2, storm: true },
-] as const;
 export const limits = { battery: 3, food: 4, hearts: 3, science: 4 };
 
 export type Outpost = {
@@ -110,7 +128,7 @@ export function endSol(s: Outpost, plan: Plan): Outpost {
   const p = preview(s, plan);
   const report: string[] = [];
   let { packs, hearts } = s;
-  if (p.air === "on") report.push("The air fan ran all sol.");
+  if (p.air === "on") report.push("The air fan ran all day.");
   else if (p.air === "pack") {
     packs--;
     report.push("The fan rested. The crew used 1 spare air pack.");

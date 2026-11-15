@@ -27,7 +27,13 @@ Touch and mouse still work: tap the ground to walk, tap an object to use it, or 
 
 **Rewards.** Each training mission has three stars: finish the mission, find its NASA photo card (walk to NOVA), and solve the star question on the results screen. Wrong answers simply switch off, so every child can earn the star. Different strategies earn different badges, which encourages a second try. Stars raise the astronaut rank from Space Cadet to Mission Commander. Everything is stored on this device only. There are no timers, streaks, rankings, accounts or personal data. **Settings → Erase my stars and badges** resets the rewards for the next player.
 
-**Outpost Commander.** Six player-advanced sols at a Moon base. Each sol the forecast shows the sunlight and whether a practice Sun storm is coming. The player shares that sol's sparks between the air fan (life support), greenhouse (food), storm shelter (radiation protection) and science lab; leftover sparks charge a battery that holds three. Every row previews its consequence before the sol ends, and a report explains what ran and what paused. Missed needs cost a crew heart, never an injury, and a lost run is a friendly retry. Stars: finish, keep all three hearts, earn four science points. All quantities are game units.
+**Outpost Commander.** Six player-advanced days at a Moon base. The Sun storms are real: the game replays May 8–13, 2024 from NASA's DONKI catalog (`data/storm-week.json`). A day is a storm day only when an instrument recorded particles (May 10, 11 and 13). May 9 had model alerts only, so NOVA reports a warning with no storm, which is a chance to talk about forecasts versus measurements. The player shares each day's sparks between the air fan (life support), greenhouse (food), storm shelter (radiation protection) and science lab; leftover sparks charge a battery that holds three. Every row previews its consequence, a report explains what ran and what paused, and each report ends with one sourced real space fact (`data/facts.ts`). Missed needs cost a crew heart, never an injury. Sparks, hearts, food and sunlight amounts are game units; those DONKI events were recorded by spacecraft near Earth, not at a Moon base.
+
+**Is the radiation live?** No public feed gives a live radiation reading from the surface of the Moon or Mars, so the game does not pretend to have one. The **Space weather station** (map strip, Outpost **X**, Explore card) shows three clearly labelled things: a **LIVE** count of fast Sun protons near Earth, which is also the Moon's neighbourhood (≥10 MeV integral flux from the primary GOES satellite, NOAA SWPC JSON, refreshed every five minutes, with NOAA's S-scale where a storm starts at 10 pfu); an archived Mars measurement (Curiosity RAD, 0.67 mSv/day, 2012–13); and an archived Moon measurement (1.37 mSv/day from the Chang'E-4 lander's LND instrument in 2019, which is not a NASA instrument and is labelled so). If the live feed fails or is older than three hours the strip says it is unavailable.
+
+**Full screen.** On anything larger than a phone the game fills the window with no page scrolling. The toolbar button or the **F** key switches the browser to true full screen.
+
+**Plain words and classrooms.** A "Space words" list (radiation, mSv, Sun storm, sol, life support) sits in the help, briefing and weather screens. The Trophy room and the Outpost results hold a "For grown-ups and classrooms" fold with discussion questions and every real finding with its source link.
 
 | Page | A short play-test |
 | --- | --- |
@@ -58,10 +64,27 @@ Each room has one picture, one idea in child-friendly language, a nearby credit,
 
 Archive fixtures and photos were checked November 14, 2026. Credits beside each photograph link to the official source. [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) · [JPL image use policy](https://www.jpl.nasa.gov/jpl-image-use-policy/)
 
+## Deploy to Vercel
+
+The project is a standard Next.js app and needs no environment variables, API keys or database.
+
+1. Push the repository to GitHub.
+2. In Vercel choose **Add New → Project**, import the repository and keep the detected **Next.js** preset. The build command is `next build`; Node 22 comes from `engines` in `package.json`.
+3. Deploy. Or from a terminal: `npx vercel` for a preview, then `npx vercel --prod`.
+
+What is already set up for production:
+
+- `/api/space-weather` runs as a serverless function. Its response carries `s-maxage=300`, so Vercel's edge serves one reading for five minutes and NASA and NOAA are called at most a few times per hour. Upstream calls time out after 4.5 seconds and fall back to the bundled archive.
+- `next.config.ts` sends `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and a `Permissions-Policy` that allows only gamepad, serial and fullscreen. There is no Content-Security-Policy header yet.
+- `app/layout.tsx` sets the title, description, theme color and link-preview image, using Vercel's production host name automatically. `app/manifest.ts` lets the game be installed to a home screen. `app/error.tsx` and `app/not-found.tsx` give friendly recovery pages.
+- The ESP32 USB connection (Web Serial) only works on HTTPS or localhost. Vercel serves HTTPS, so it works on the deployed site in Chrome and Edge.
+- Stars and saves live in each visitor's browser. Nothing about a player is sent to the server.
+
 ## Project map
 
 - `game/input.ts` turns the keyboard, the browser Gamepad API and ESP32 serial lines into the same eight buttons and routes them to the open screen or dialog. `game/profile.ts` holds stars, badges, ranks and the star questions. `game/outpost.ts` holds the Outpost Commander rules. All three are pure TypeScript with unit tests. `game/sfx.ts` synthesizes the optional sounds.
-- `components/Outpost.tsx` and `app/outpost/page.tsx` are the final mission. Unlike the four rooms it is an HTML board rather than a Phaser scene.
+- `components/Outpost.tsx` and `app/outpost/page.tsx` are the final mission. `game/base.ts` is its Phaser scene: the fan, plants, shelter dome, dish, power lines and astronaut all redraw from the player's current plan. The spark controls are HTML below the scene.
+- Room animations in `game/world.ts` (floating labels for what changed, boot dust outdoors on the Moon and Mars, twinkling lunar stars, drifting dust on the Mars rock hunt, launch and landing shake, confetti) are drawn from state and switch off with Reduced motion.
 
 - `app/missions/[id]/page.tsx` supplies the four direct Next.js routes. `components/AdventureRoom.tsx` connects React controls, preferences, progress and the browser-only Phaser scene.
 - `game/adventure.ts` contains pure mission rules. `game/journal.ts` restores a validated versioned action history per room. Time passing or rendering a frame never advances a simulation.

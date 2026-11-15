@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { MissionId } from "./missions";
-import { stations, type Run, type Spot } from "./adventure";
+import { meters, stations, type Run, type Spot } from "./adventure";
 import { input } from "./input";
 import {
   cells,
@@ -84,6 +84,20 @@ export function startWorld(
       duration: number;
     } | null = null;
     pointAt: Target | null = null;
+    // Ambient life and feedback. None of it changes the game state.
+    motes: { x: number; y: number; v: number; r: number; p: number }[] = [];
+    puffs: { x: number; y: number; age: number }[] = [];
+    confetti: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      c: number;
+      age: number;
+    }[] = [];
+    popups: { text: Phaser.GameObjects.Text; age: number }[] = [];
+    cheer = 0;
+    step = 0;
 
     preload() {
       this.load.image("landscape", "/art/world/" + id + ".webp");
@@ -110,6 +124,14 @@ export function startWorld(
       this.floorInk = this.add.graphics().setDepth(2);
       this.detail = this.add.graphics().setDepth(320);
       this.fx = this.add.graphics().setDepth(420);
+      for (let i = 0; i < 30; i++)
+        this.motes.push({
+          x: Math.random(),
+          y: Math.random(),
+          v: 5 + Math.random() * 12,
+          r: Math.random() < 0.3 ? 2 : 1,
+          p: Math.random() * 6.28,
+        });
       const labelStyle = {
         fontFamily: "monospace",
         fontSize: "10px",
@@ -183,6 +205,7 @@ export function startWorld(
     }
     reset() {
       if (!this.started) return;
+      this.clearEffects();
       this.effect = null;
       this.destination = this.via = null;
       this.target = this.queued = null;
@@ -319,6 +342,8 @@ export function startWorld(
       }
       const before = hooks.state(),
         after = hooks.activate(t);
+      if (!reduced && after.steps > before.steps)
+        this.celebrate(t, before, after);
       const duration =
         before.id === "go" && after.done
           ? 1600
@@ -340,6 +365,84 @@ export function startWorld(
         const a = this.anchor(1, after);
         this.pos = { x: a.x + 15, y: a.y + 18 };
       }
+    }
+    /** Floating labels show what changed; finishing a mission throws confetti. */
+    celebrate(t: Spot, before: Run, after: Run) {
+      const a = this.anchor(spots.indexOf(t), after);
+      const was = new Map(meters(before));
+      let row = 0;
+      for (const [name, value] of meters(after)) {
+        if (was.get(name) === value) continue;
+        const text = this.add
+          .text(
+            clamp(a.x, 40, width - 40),
+            a.y - 58 - row++ * 13,
+            name + " " + value,
+            {
+              fontFamily: "monospace",
+              fontSize: "10px",
+              fontStyle: "bold",
+              color: "#172232",
+              backgroundColor: "#9ae8d5",
+              padding: { x: 4, y: 2 },
+              resolution: 2,
+            },
+          )
+          .setOrigin(0.5, 1)
+          .setDepth(440);
+        this.popups.push({ text, age: 0 });
+      }
+      const landed = before.id === "land" && before.phase === "arrival";
+      if ((before.id === "go" && after.done) || landed)
+        this.cameras.main.shake(landed ? 320 : 1100, landed ? 0.008 : 0.005);
+      if (after.done) {
+        this.cheer = 1500;
+        for (let i = 0; i < 40; i++)
+          this.confetti.push({
+            x: this.pos.x,
+            y: this.pos.y - 34,
+            vx: (Math.random() - 0.5) * 0.24,
+            vy: -0.08 - Math.random() * 0.2,
+            c: [0xffd078, 0x9ae8d5, 0xff9f6b, 0xc5abff, 0xffffff][i % 5],
+            age: 0,
+          });
+      }
+    }
+    clearEffects() {
+      this.popups.forEach((p) => p.text.destroy());
+      this.popups = [];
+      this.confetti = [];
+      this.puffs = [];
+      this.cheer = 0;
+    }
+    animate(dt: number, moving: boolean) {
+      if (reduced) return this.clearEffects();
+      for (const m of this.motes) m.x = (m.x + (m.v * dt) / 1000 / width) % 1;
+      this.cheer = Math.max(0, this.cheer - dt);
+      // Dust kicks up under boots outdoors on the Moon and Mars, not on the launchpad or indoors.
+      const step = Math.floor(this.stride / 240);
+      if (moving && step !== this.step && (id === "land" || id === "explore"))
+        this.puffs.push({ x: this.pos.x, y: this.pos.y, age: 0 });
+      this.step = step;
+      for (const p of this.puffs) p.age += dt;
+      this.puffs = this.puffs.filter((p) => p.age < 420);
+      for (const c of this.confetti) {
+        c.age += dt;
+        c.vy += 0.00042 * dt;
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+      }
+      this.confetti = this.confetti.filter((c) => c.age < 1700);
+      for (const p of this.popups) {
+        p.age += dt;
+        p.text.y -= dt * 0.018;
+        p.text.setAlpha(Math.min(1, 2.4 - p.age / 500));
+      }
+      this.popups = this.popups.filter((p) => {
+        if (p.age < 1200) return true;
+        p.text.destroy();
+        return false;
+      });
     }
     intersectsProp(x: number, y: number) {
       const s = hooks.state();
@@ -405,6 +508,7 @@ export function startWorld(
         this.visit(t);
       }
       const moving = this.walk(dt);
+      this.animate(dt, moving);
       this.paint(moving);
     }
     paint(moving: boolean) {
@@ -427,6 +531,43 @@ export function startWorld(
         fx = this.fx;
       const labels = stations(s);
       const nearest = this.nearest();
+      if (!reduced) {
+        if (id === "land") {
+          // Stars twinkle in the black lunar sky. There is no air to carry dust.
+          for (const m of this.motes)
+            floor
+              .fillStyle(
+                0xffffff,
+                0.25 + 0.6 * Math.abs(Math.sin(this.clock / 800 + m.p)),
+              )
+              .fillRect(m.p * 0.159 * width, m.y * height * 0.2, m.r, m.r);
+        } else if (id === "explore") {
+          // Fine Mars dust drifts on the thin wind outdoors.
+          for (const m of this.motes)
+            floor
+              .fillStyle(0xf0b07a, 0.32)
+              .fillRect(
+                m.x * width,
+                m.y * height + Math.sin(this.clock / 900 + m.p) * 3,
+                m.r,
+                m.r,
+              );
+        }
+        for (const p of this.puffs)
+          floor
+            .fillStyle(
+              id === "land" ? 0xd5d9e2 : 0xdc9a66,
+              0.5 * (1 - p.age / 420),
+            )
+            .fillCircle(p.x, p.y - p.age * 0.012, 2 + p.age * 0.012);
+        for (const c of this.confetti)
+          fx.fillStyle(c.c, Math.min(1, 3 - c.age / 560)).fillRect(
+            c.x,
+            c.y,
+            3,
+            3,
+          );
+      }
       for (let i = 0; i < 3; i++) {
         const p = this.props[i],
           a = this.anchor(i, s),
@@ -836,7 +977,12 @@ export function startWorld(
       const x = ride?.x ?? this.pos.x,
         y = ride?.y ?? this.pos.y;
       this.actor
-        .setPosition(x, y - (moving && !reduced && alt ? 1 : 0))
+        .setPosition(
+          x,
+          y -
+            (moving && !reduced && alt ? 1 : 0) -
+            (this.cheer > 0 ? Math.abs(Math.sin(this.cheer / 150)) * 8 : 0),
+        )
         .setDepth(ride ? 340 : y + 0.5)
         .setVisible(!onboard);
       this.shadow.setPosition(x, this.pos.y).setVisible(!onboard && !ride);

@@ -1,4 +1,5 @@
 import {
+  classifyProtons,
   classifyReport,
   windowFor,
   type WeatherReport,
@@ -23,19 +24,39 @@ async function readCatalog(now: Date): Promise<WeatherReport> {
     return classifyReport(null, now);
   }
 }
+// Live proton flux from the primary GOES satellite, published by NOAA SWPC.
+async function readProtons(now: Date) {
+  try {
+    const res = await fetch(
+      "https://services.swpc.noaa.gov/json/goes/primary/integral-protons-1-day.json",
+      { signal: AbortSignal.timeout(4500), cache: "no-store" },
+    );
+    if (!res.ok) throw new Error("Feed unavailable");
+    return classifyProtons(await res.json(), now);
+  } catch {
+    return null;
+  }
+}
 export async function GET() {
   const now = new Date();
   if (!cache || cache.until <= now.getTime()) {
-    inFlight ??= readCatalog(now).finally(() => {
-      inFlight = undefined;
-    });
+    inFlight ??= Promise.all([readCatalog(now), readProtons(now)])
+      .then(([report, live]) => ({ ...report, now: live }))
+      .finally(() => {
+        inFlight = undefined;
+      });
     const report = await inFlight;
     cache = {
-      until: now.getTime() + (report.kind === "archive" ? 60_000 : 15 * 60_000),
+      // The live reading changes every five minutes.
+      until: now.getTime() + (report.kind === "archive" ? 60_000 : 5 * 60_000),
       report,
     };
   }
   return Response.json(cache.report, {
-    headers: { "Cache-Control": "no-store" },
+    // Vercel's edge keeps a reading for five minutes, the pace of the satellite feed,
+    // so most visitors never wake the function or NASA's servers.
+    headers: {
+      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+    },
   });
 }

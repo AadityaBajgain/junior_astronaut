@@ -31,3 +31,20 @@ These checks used installed Chrome and touch emulation. Physical-device testing,
 | `npm run lint`, `npm test` | ESLint passed. 18 unit tests passed, adding key, serial-line and gamepad mapping, stars, badges, ranks, corrupt reward saves and the Outpost Commander rules (budget limits, battery cap, a losing all-science plan, a three-star plan and a missed shelter). |
 | `npm run test:e2e` | 9 Chrome tests passed against the running dev server. New tests play from the title screen through the Go mission, the star question and into the next room using keys only; drive the title, map and a room with a simulated standard gamepad; and win Outpost Commander with three stars using keys only. |
 | Not verified | No physical gamepad or ESP32 board was connected. The Web Serial connection was not exercised in a browser; only its line parser is tested. Sounds were not listened to. Playtesting with children remains open. |
+
+## Real data and full-screen update · November 15, 2026
+
+| Check | Result |
+| --- | --- |
+| Live feed | `/api/space-weather` returned a GOES-18 ≥10 MeV reading of 0.25 pfu stamped 10:55 UTC (scale S0) alongside the DONKI report. |
+| Sources | The DONKI query for May 8–13, 2024 was run and its 14 records saved to `data/storm-week.json`. The NASA pages for the water recovery, exercise and bone facts and the NOAA scale and GOES pages were fetched and the quoted figures found in them. The Chang'E-4 figure comes from published coverage of Zhang et al. 2020; the journal page itself blocked automated access. |
+| Tests | 20 unit tests and 9 Chrome tests passed, covering live-reading validation (stale, future, malformed), storm days derived from the records, the weather station text, the F key and a three-star Outpost run on the real storm dates. |
+| Not verified | A storm-level live reading has not been seen in the UI because the Sun was calm; only the calm state was viewed. Full-screen layout was viewed at 1280 × 760 only. |
+
+## Animation and production update · November 15, 2026
+
+| Check | Result |
+| --- | --- |
+| Tests and build | ESLint, TypeScript, 20 unit tests, 9 Chrome tests and `npm run build` passed after the room animations, the Phaser base scene and the production settings were added. |
+| Headers | The dev server returned the `Permissions-Policy` and `X-Content-Type-Options` headers, `s-maxage=300` on `/api/space-weather`, the web manifest and a 404 page for an unknown path. |
+| Not verified | The app has not been deployed to Vercel from this repository. Confetti, launch shake and floating labels were not watched frame by frame; the base scene was viewed at 1280 × 800. |

@@ -23,6 +23,16 @@ function WeatherCard({ report }: { report: WeatherReport | null }) {
       <p className="weather-date">
         {source} · {e.time.slice(0, 10)}
       </p>
+      {report?.now && (
+        <p className="weather-date">
+          <b className="live-tag">LIVE</b> Near Earth right now:{" "}
+          {report.now.scale === 0
+            ? "calm, no Sun storm"
+            : "Sun storm level S" + report.now.scale}{" "}
+          · {report.now.flux.toFixed(2)} pfu · {report.now.satellite} ·{" "}
+          {report.now.time.slice(11, 16)} UTC · NOAA
+        </p>
+      )}
       {report?.kind === "empty" && (
         <p className="source-meta">
           NASA returned no matching events for {report.from} to {report.to}. The
