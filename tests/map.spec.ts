@@ -231,8 +231,8 @@ test("phone touch, larger words and archived field notes work with external traf
     .toBe(true);
   await ctx.close();
 });
-MoonSprout
-test("invalid or unavailabMoonSproutallow play", async ({ page }) => {
+
+test("invalid or unavailable saves still allow play", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("JuniorAstronaut.room.v1.go", "{");
     localStorage.setItem("JuniorAstronaut.map.v1", "??");
@@ -544,7 +544,7 @@ test("the final mission stays hidden until all four missions are finished", asyn
   );
   await expect(page.locator(".outpost-card")).toHaveCount(0);
   // The map fills the whole window.
-  constMoonSproutage.locator("canvas").boundingBox())!;
+  const box = (await page.locator("canvas").boundingBox())!;
   const size = page.viewportSize()!;
   expect(box.width).toBe(size.width);
   expect(box.height).toBe(size.height);
