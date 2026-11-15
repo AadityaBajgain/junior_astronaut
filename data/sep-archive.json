@@ -1,0 +1,10 @@
+{
+  "sepID": "2024-05-10T13:35:00-SEP-001",
+  "eventTime": "2024-05-10T13:35Z",
+  "instruments": [
+    {
+      "displayName": "GOES-P: SEISS >10 MeV"
+    }
+  ],
+  "link": "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1"
+}

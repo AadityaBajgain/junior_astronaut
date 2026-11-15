@@ -1,0 +1,29 @@
+{
+  "measurement": {
+    "title": "Average surface radiation at Gale Crater",
+    "kind": "Archived measurement",
+    "agency": "NASA",
+    "mission": "Curiosity",
+    "instrument": "Radiation Assessment Detector (RAD)",
+    "place": "Gale Crater, Mars",
+    "period": "August 2012 – June 2013",
+    "value": 0.67,
+    "unit": "mSv/day",
+    "source": "https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/",
+    "retrieved": "2026-11-14",
+    "release": "13-366",
+    "published": "2013-12-09"
+  },
+  "image": {
+    "title": "Preliminary Self-Portrait of Curiosity by Rover’s Arm Camera",
+    "kind": "Archive photo mosaic",
+    "id": "PIA16238",
+    "instrument": "Mars Hand Lens Imager (MAHLI)",
+    "place": "Rocknest, Gale Crater, Mars",
+    "date": "2012-10-31",
+    "credit": "NASA/JPL-Caltech/Malin Space Science Systems",
+    "source": "https://science.nasa.gov/resource/preliminary-self-portrait-of-curiosity-by-rovers-arm-camera/",
+    "retrieved": "2026-11-14",
+    "file": "/art/PIA16238.jpg"
+  }
+}
