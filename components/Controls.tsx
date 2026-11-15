@@ -6,7 +6,16 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { Check, Gamepad2, Rocket, Star, Usb, X } from "lucide-react";
+import {
+  Check,
+  Gamepad2,
+  Maximize,
+  Minimize,
+  Rocket,
+  Star,
+  Usb,
+  X,
+} from "lucide-react";
 import { initial, makeStore, type Preferences } from "../game/state";
 import {
   input,
@@ -54,6 +63,43 @@ export function Hints({ items }: { items: [Btn | "move", string][] }) {
         </span>
       ))}
     </p>
+  );
+}
+const fullListeners = (f: () => void) => {
+  document.addEventListener("fullscreenchange", f);
+  return () => document.removeEventListener("fullscreenchange", f);
+};
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen().catch(() => {});
+  } catch {
+    /* Fullscreen is optional. */
+  }
+}
+/** Fills the whole screen. The F key does the same from any screen. */
+export function FullscreenButton() {
+  const full = useSyncExternalStore(
+    fullListeners,
+    () => !!document.fullscreenElement,
+    () => false,
+  );
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "f" && !e.altKey && !e.ctrlKey && !e.metaKey)
+        toggleFullscreen();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  return (
+    <button
+      onClick={toggleFullscreen}
+      aria-label={full ? "Leave full screen" : "Full screen"}
+      title="Full screen (F)"
+    >
+      {full ? <Minimize /> : <Maximize />}
+    </button>
   );
 }
 export function StarRow({

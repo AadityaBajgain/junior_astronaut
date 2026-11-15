@@ -359,20 +359,60 @@ test("a gamepad starts the game, enters a room, walks and uses things", async ({
 test("Outpost Commander: six sols of balancing power, air, food and shelter with keys only", async ({
   page,
 }) => {
+  // The live feed is stubbed, so the test never depends on today's space weather.
+  await page.route("**/api/space-weather", (r) =>
+    r.fulfill({
+      json: {
+        kind: "empty",
+        from: "2026-10-17",
+        to: "2026-11-15",
+        checkedAt: "2026-11-15T11:00:00.000Z",
+        event: {
+          id: "2024-05-10T13:35:00-SEP-001",
+          time: "2024-05-10T13:35Z",
+          instrument: "GOES-P: SEISS >10 MeV",
+          source: "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1",
+        },
+        now: {
+          flux: 0.25,
+          time: "2026-11-15T10:55:00.000Z",
+          satellite: "GOES-18",
+          scale: 0,
+        },
+      },
+    }),
+  );
   await page.goto("/outpost");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Commander, your base!");
+  await expect(dialog).toContainText("May 8 to 13, 2024");
   await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".outpost-sky")).toContainText(
+    "May 8, 2024: no Sun storm was recorded",
+  );
+  await expect(page.locator(".outpost-sky")).toContainText("LIVE");
+  await page.keyboard.press("x");
+  await expect(dialog).toContainText("0.25 pfu");
+  await expect(dialog).toContainText("1.37 mSv/day");
+  await expect(dialog).toContainText("0.67 mSv/day");
+  await expect(dialog).toContainText("not live");
+  await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   // air, greenhouse, shelter, lab for each sol
   const plans = [
     [1, 2, 0, 2],
-    [1, 1, 1, 1],
-    [1, 0, 0, 1],
+    [1, 1, 0, 1],
+    [1, 0, 1, 1],
     [1, 0, 1, 0],
     [1, 1, 0, 1],
     [1, 0, 1, 1],
   ];
+  await page.keyboard.press("f"); // full screen and back, from the keyboard
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(true);
+  await page.keyboard.press("f");
   for (const [sol, plan] of plans.entries()) {
     await expect(page.locator(".system-list")).toHaveAttribute(
       "data-sol",
@@ -383,7 +423,8 @@ test("Outpost Commander: six sols of balancing power, air, food and shelter with
       await page.keyboard.press("ArrowDown");
     }
     await page.keyboard.press("Space");
-    await expect(dialog).toContainText("Sol " + (sol + 1) + " report");
+    await expect(dialog).toContainText("Day " + (sol + 1) + " report");
+    await expect(dialog).toContainText("REAL SPACE FACT");
     await page.keyboard.press("Enter");
   }
   await expect(dialog).toContainText("Outpost safe!");

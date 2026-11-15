@@ -57,6 +57,7 @@ import { type WeatherReport, historicalEvent } from "../game/space-weather";
 import {
   Brand,
   Dialog,
+  FullscreenButton,
   Hints,
   Settings,
   StarRow,
@@ -66,6 +67,7 @@ import {
   useProfile,
 } from "./Controls";
 import FieldNote from "./Science";
+import { WordList } from "./SpaceWeather";
 import { isDirection } from "../game/input";
 import { play } from "../game/sfx";
 import {
@@ -366,6 +368,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
               <Pause />
               <span>Pause</span>
             </button>
+            <FullscreenButton />
             <button onClick={() => setPanel("settings")} aria-label="Settings">
               <Settings2 />
             </button>
@@ -563,6 +566,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           <button className="primary" onClick={close}>
             Got it <Check size={17} />
           </button>
+          <WordList />
         </Dialog>
       )}
       {panel === "pause" && (

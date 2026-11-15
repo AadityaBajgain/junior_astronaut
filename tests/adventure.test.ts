@@ -1,7 +1,12 @@
 import { expect, it } from "vitest";
 import { act, begin, type Spot } from "../game/adventure";
 import { decodeSession } from "../game/journal";
-import { classifyReport, historicalEvent } from "../game/space-weather";
+import {
+  classifyProtons,
+  classifyReport,
+  historicalEvent,
+  stormScale,
+} from "../game/space-weather";
 import archive from "../data/sep-archive.json";
 
 const route = (id: Parameters<typeof begin>[0], moves: Spot[]) =>
@@ -119,4 +124,39 @@ it("labels valid observations, empty responses, corrupt data, old records and mo
   expect(classifyReport([archive], new Date("2026-11-14T00:00Z")).kind).toBe(
     "archive",
   );
+});
+
+it("reads only a fresh, valid live proton reading and scales it like NOAA", () => {
+  const now = new Date("2026-11-15T11:00:00Z");
+  const row = (time_tag: string, flux: unknown, energy = ">=10 MeV") => ({
+    time_tag,
+    satellite: 18,
+    flux,
+    energy,
+  });
+  expect(
+    classifyProtons(
+      [
+        row("2026-11-15T10:50:00Z", 0.3),
+        row("2026-11-15T10:55:00Z", 0.25),
+        row("2026-11-15T10:55:00Z", 99, ">=100 MeV"),
+        row("2026-11-15T10:58:00Z", "12"),
+        row("2026-11-15T10:59:00Z", -1),
+      ],
+      now,
+    ),
+  ).toEqual({
+    flux: 0.25,
+    time: "2026-11-15T10:55:00.000Z",
+    satellite: "GOES-18",
+    scale: 0,
+  });
+  // Stale, future, malformed and missing feeds are never shown as live.
+  expect(classifyProtons([row("2026-11-15T06:00:00Z", 5)], now)).toBeNull();
+  expect(classifyProtons([row("2026-11-16T06:00:00Z", 5)], now)).toBeNull();
+  for (const bad of [null, {}, "x", [null, 3, {}]])
+    expect(classifyProtons(bad, now)).toBeNull();
+  expect([0.2, 9.9, 10, 99, 100, 5000, 1e7].map(stormScale)).toEqual([
+    0, 0, 1, 1, 2, 3, 5,
+  ]);
 });

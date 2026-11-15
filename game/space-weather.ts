@@ -12,7 +12,50 @@ export const historicalEvent: EventRecord = {
   instrument: archive.instruments[0].displayName,
   source: archive.link,
 };
+/** The newest live reading of Sun protons near Earth, from a GOES weather satellite. */
+export type ProtonNow = {
+  flux: number; // protons with at least 10 MeV, in pfu
+  time: string;
+  satellite: string;
+  scale: 0 | 1 | 2 | 3 | 4 | 5; // NOAA solar radiation storm scale
+};
+/** NOAA S-scale: S1 starts at 10 pfu and each level is ten times the last. */
+export function stormScale(flux: number): ProtonNow["scale"] {
+  const level = flux < 10 ? 0 : Math.floor(Math.log10(flux));
+  return Math.min(5, Math.max(0, level)) as ProtonNow["scale"];
+}
+/** Picks the newest valid >=10 MeV reading. Old, future or malformed rows give null. */
+export function classifyProtons(raw: unknown, date: Date): ProtonNow | null {
+  if (!Array.isArray(raw)) return null;
+  let best: ProtonNow | null = null;
+  for (const row of raw) {
+    if (
+      !row ||
+      row.energy !== ">=10 MeV" ||
+      typeof row.flux !== "number" ||
+      !Number.isFinite(row.flux) ||
+      row.flux < 0 ||
+      typeof row.time_tag !== "string" ||
+      !Number.isInteger(row.satellite)
+    )
+      continue;
+    const stamp = Date.parse(row.time_tag);
+    const age = date.getTime() - stamp;
+    // A reading older than three hours is no longer "now".
+    if (!Number.isFinite(stamp) || age < -5 * 60_000 || age > 3 * 3600_000)
+      continue;
+    if (!best || stamp > Date.parse(best.time))
+      best = {
+        flux: row.flux,
+        time: new Date(stamp).toISOString(),
+        satellite: "GOES-" + row.satellite,
+        scale: stormScale(row.flux),
+      };
+  }
+  return best;
+}
 export type WeatherReport = {
+  now?: ProtonNow | null;
   kind: "archive" | "catalog" | "empty";
   from: string;
   to: string;

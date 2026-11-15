@@ -36,11 +36,21 @@ import {
   today,
   type Plan,
 } from "../game/outpost";
+import type { BaseView } from "../game/base";
 import { profileStore, starNames, badges, type BadgeId } from "../game/profile";
 import { play } from "../game/sfx";
+import { facts } from "../data/facts";
+import {
+  GrownUps,
+  WeatherStation,
+  WeatherStrip,
+  WordList,
+  useWeather,
+} from "./SpaceWeather";
 import {
   Brand,
   Dialog,
+  FullscreenButton,
   Hints,
   Settings,
   StarRow,
@@ -49,7 +59,15 @@ import {
   useProfile,
 } from "./Controls";
 
-type Panel = "settings" | "pause" | "report" | "end" | "brief" | null;
+type Panel =
+  "settings" | "pause" | "report" | "end" | "brief" | "station" | null;
+const longDate = (iso: string) =>
+  new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 const pips = (n: number, of: number) =>
   Array.from({ length: of }, (_, i) => i < n);
 
@@ -63,11 +81,43 @@ export default function Outpost() {
   const [fresh, setFresh] = useState<BadgeId[]>([]);
   const rows = useRef<(HTMLElement | null)[]>([]);
   const sound = state.prefs.sound;
+  const weather = useWeather();
   const day = today(game),
     budget = sparks(game),
     left = budget - spent(plan),
     look = preview(game, plan);
   const endRow = systems.length;
+  // The Phaser picture of the base reads the newest state every frame.
+  const scene = useRef<HTMLDivElement>(null);
+  const picture = useRef<BaseView>(null);
+  useEffect(() => {
+    picture.current = {
+      plan,
+      sun: day.sun,
+      storm: day.storm,
+      battery: game.battery,
+      food: game.food,
+      row,
+      reduced: state.prefs.reducedMotion,
+      paused: panel === "pause" || panel === "settings",
+    };
+  });
+  useEffect(() => {
+    let dispose: (() => void) | undefined,
+      gone = false;
+    void import("../game/base")
+      .then(({ startBase }) => {
+        if (!gone && scene.current)
+          dispose = startBase(scene.current, () => picture.current!);
+      })
+      .catch(() => {
+        /* The board below still plays without the picture. */
+      });
+    return () => {
+      gone = true;
+      dispose?.();
+    };
+  }, []);
 
   function change(index: number, delta: 1 | -1) {
     const next = adjust(game, plan, systems[index].id, delta);
@@ -127,7 +177,7 @@ export default function Outpost() {
         return true;
       }
       case "x":
-        setPanel("brief");
+        setPanel("station");
         return true;
       default:
         setPanel("pause");
@@ -176,6 +226,7 @@ export default function Outpost() {
               <Pause />
               <span>Pause</span>
             </button>
+            <FullscreenButton />
             <button onClick={() => setPanel("settings")} aria-label="Settings">
               <Settings2 />
             </button>
@@ -201,7 +252,7 @@ export default function Outpost() {
         <div className="game-case">
           <div className="game-strip">
             <span className="goal">
-              Sol {game.sol} of {sols.length}
+              Day {game.sol} of {sols.length}
             </span>
             <div className="meters" aria-label="Outpost supplies">
               <span title="Crew hearts">
@@ -230,6 +281,7 @@ export default function Outpost() {
               </span>
             </div>
           </div>
+          <div className="outpost-scene" ref={scene} aria-hidden="true" />
           <div className="outpost-sky" data-storm={day.storm}>
             <p className="forecast">
               {day.sun >= 4 ? (
@@ -237,8 +289,9 @@ export default function Outpost() {
               ) : (
                 <Sun size={20} opacity={0.5} />
               )}
-              <b>{day.sun >= 4 ? "Sunny sol" : "Dusty sol"}</b> · {day.sun} sun
-              sparks
+              <b>{day.sun >= 4 ? "Bright day" : "Shadow day"}</b> · {day.sun}{" "}
+              sun sparks
+              {day.sun < 4 && " (a crater rim shades the panels)"}
               {game.battery > 0 && (
                 <>
                   {" "}
@@ -248,9 +301,20 @@ export default function Outpost() {
             </p>
             <p className={"forecast storm-line" + (day.storm ? " alert" : "")}>
               <CloudLightning size={20} />
-              {day.storm
-                ? "NOVA radio: practice Sun storm today. Power the shelter!"
-                : "NOVA radio: no storm in today’s forecast."}
+              <span>
+                <b className="real-tag">REAL NASA RECORD</b>{" "}
+                {longDate(day.date)}:{" "}
+                {day.storm
+                  ? "a Sun storm! " +
+                    day.record!.instrument.split(":")[0] +
+                    " recorded fast Sun particles. Power the shelter!"
+                  : day.modelOnly
+                    ? "a computer model sent a warning, but no instrument recorded a storm."
+                    : "no Sun storm was recorded."}
+              </span>
+            </p>
+            <p className="forecast storm-line">
+              <WeatherStrip report={weather} />
             </p>
             <p className="spark-bank" aria-live="polite">
               <span className="meter-name">Sparks left</span>
@@ -341,7 +405,7 @@ export default function Outpost() {
               onClick={commit}
             >
               <span>
-                <b>End sol {game.sol}</b>
+                <b>End day {game.sol}</b>
                 <small>
                   {look.saved > 0
                     ? "Battery saves " + look.saved + " for later"
@@ -368,7 +432,7 @@ export default function Outpost() {
               <p>
                 {left > 0
                   ? "Give your sparks to the base. Leftover sparks charge the battery."
-                  : "All sparks are placed. End the sol when you are ready!"}
+                  : "All sparks are placed. End the day when you are ready!"}
               </p>
             </div>
           </div>
@@ -376,8 +440,8 @@ export default function Outpost() {
         <Hints
           items={[
             ["move", "Pick · add · remove"],
-            ["a", "Add / End sol"],
-            ["x", "How to play"],
+            ["a", "Add / End day"],
+            ["x", "Space weather"],
             ["b", "Menu"],
           ]}
         />
@@ -385,33 +449,41 @@ export default function Outpost() {
       {panel === "brief" && (
         <Dialog title="Commander, your base!" close={close}>
           <p>
-            Keep your crew safe for <b>6 sols</b>. A sol is one day on another
-            world.
+            Keep your crew safe for <b>6 days</b> at a base near the Moon’s
+            south pole.
           </p>
           <p>
-            Each sol the Sun gives you <b>sparks</b> of power. Share them
+            Each day the Sun gives you <b>sparks</b> of power. Share them
             between the air fan, the greenhouse, the storm shelter and the lab.
             Sparks you keep charge the battery (up to {limits.battery}).
           </p>
           <p>
             Up and down pick a machine. Left and right take or give a spark.
-            Then choose <b>End sol</b>.
+            Then choose <b>End day</b>.
+          </p>
+          <p>
+            <b className="real-tag">REAL NASA RECORD</b> The Sun storms are
+            real. You replay May 8 to 13, 2024, using NASA’s DONKI storm list. A
+            Sun storm is a burst of fast particles from the Sun. That is
+            radiation, so the crew needs a shelter. Real Sun particles are
+            invisible. The game draws them so you can see the storm.
           </p>
           <p className="source-meta">
-            Sparks, hearts and storms here are game units and practice drills.
-            Real crews plan shelter using space weather reports like NASA DONKI.
+            The storms were recorded by spacecraft near Earth. Sparks, hearts,
+            food and sunlight amounts are game units.
           </p>
           <button className="primary" onClick={close}>
             <Play size={17} /> Start
           </button>
+          <WordList />
         </Dialog>
       )}
       {panel === "report" && (
         <Dialog
           title={
             game.status === "play"
-              ? "Sol " + (game.sol - 1) + " report"
-              : "Sol " + game.sol + " report"
+              ? "Day " + (game.sol - 1) + " report"
+              : "Day " + game.sol + " report"
           }
           close={() => setPanel(game.status === "play" ? null : "end")}
         >
@@ -426,9 +498,23 @@ export default function Outpost() {
             className="primary"
             onClick={() => setPanel(game.status === "play" ? null : "end")}
           >
-            {game.status === "play" ? "Next sol" : "See how you did"}{" "}
+            {game.status === "play" ? "Next day" : "See how you did"}{" "}
             <ArrowRight size={17} />
           </button>
+          {(() => {
+            const fact =
+              facts[
+                (game.sol - (game.status === "play" ? 2 : 1)) % facts.length
+              ];
+            return (
+              <p className="fact-card">
+                <b className="real-tag">REAL SPACE FACT</b> {fact.kid}{" "}
+                <a href={fact.link} target="_blank" rel="noreferrer">
+                  {fact.agency}
+                </a>
+              </p>
+            );
+          })()}
         </Dialog>
       )}
       {panel === "end" && (
@@ -446,7 +532,7 @@ export default function Outpost() {
             </div>
             <p className="result-message">
               {game.status === "won"
-                ? "You balanced power, air, food and shelter for 6 sols. The crew kept " +
+                ? "You balanced power, air, food and shelter for 6 days. The crew kept " +
                   game.hearts +
                   " hearts and earned " +
                   game.science +
@@ -471,9 +557,11 @@ export default function Outpost() {
             <Link className="menu-choice" href="/">
               <Map size={17} /> Mission map
             </Link>
+            <GrownUps />
           </div>
         </Dialog>
       )}
+      {panel === "station" && <WeatherStation report={weather} close={close} />}
       {panel === "settings" && (
         <Settings prefs={state.prefs} toggle={toggle} close={close} />
       )}
@@ -484,6 +572,9 @@ export default function Outpost() {
           </button>
           <button className="menu-choice" onClick={restart}>
             <RotateCcw size={17} /> Start over
+          </button>
+          <button className="menu-choice" onClick={() => setPanel("brief")}>
+            How to play
           </button>
           <Link className="menu-choice" href="/">
             <Map size={17} /> Mission map

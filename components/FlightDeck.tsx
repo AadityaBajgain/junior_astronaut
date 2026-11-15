@@ -37,6 +37,7 @@ import { fieldNotes } from "../data/field-notes";
 import {
   Brand,
   Dialog,
+  FullscreenButton,
   Hints,
   Settings,
   StarRow,
@@ -45,6 +46,12 @@ import {
   usePreferences,
   useProfile,
 } from "./Controls";
+import {
+  GrownUps,
+  WeatherStation,
+  WeatherStrip,
+  useWeather,
+} from "./SpaceWeather";
 
 // The title shows once per browser tab, so coming back to the map is instant.
 const startedKey = "JuniorAstronaut.started";
@@ -105,7 +112,7 @@ function Trophies({ profile, close }: { profile: Profile; close: () => void }) {
         <summary>For curious grown-ups: science log</summary>
         <p>
           Every mission uses one real NASA record. Photos and reports are
-          archives. Sparks, hearts, stars and sols are game units.
+          archives. Sparks, hearts and stars are game units.
         </p>
         {missions.map((m) => (
           <p key={m.id}>
@@ -125,6 +132,7 @@ function Trophies({ profile, close }: { profile: Profile; close: () => void }) {
           </p>
         ))}
       </details>
+      <GrownUps />
     </Dialog>
   );
 }
@@ -133,6 +141,8 @@ export default function FlightDeck() {
   const { store, state, toggle } = usePreferences();
   const [settings, setSettings] = useState(false);
   const [trophies, setTrophies] = useState(false);
+  const [station, setStation] = useState(false);
+  const weather = useWeather();
   const profile = useProfile();
   const rank = rankOf(profile);
   const upNext = nextStage(profile);
@@ -263,6 +273,7 @@ export default function FlightDeck() {
             >
               {state.paused ? <Play /> : <Pause />}
             </button>
+            <FullscreenButton />
             <button aria-label="Settings" onClick={() => setSettings(true)}>
               <Settings2 />
               <span>Settings</span>
@@ -356,13 +367,16 @@ export default function FlightDeck() {
           <span>
             <b>Final mission · Outpost Commander</b>
             <small>
-              Run a Moon base for 6 sols. Balance air, food, power and the storm
-              shelter.
+              Run a Moon base for 6 days of real Sun storms. Balance air, food,
+              power and the storm shelter.
             </small>
           </span>
           <StarRow stars={profile.stars.outpost} names={starNames.outpost} />
           {upNext === "outpost" && <span className="next-flag">NEXT</span>}
         </Link>
+        <button className="weather-chip" onClick={() => setStation(true)}>
+          <WeatherStrip report={weather} />
+        </button>
         <Hints
           items={[
             ["move", "Choose"],
@@ -371,6 +385,9 @@ export default function FlightDeck() {
           ]}
         />
       </main>
+      {station && (
+        <WeatherStation report={weather} close={() => setStation(false)} />
+      )}
       {trophies && (
         <Trophies profile={profile} close={() => setTrophies(false)} />
       )}

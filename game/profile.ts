@@ -8,7 +8,7 @@ export type StageId = MissionId | "outpost";
 export type Stars = [boolean, boolean, boolean];
 export const starNames: Record<"room" | "outpost", [string, string, string]> = {
   room: ["Mission done", "NASA card found", "Quiz solved"],
-  outpost: ["Crew safe for 6 sols", "All 3 hearts kept", "4 science points"],
+  outpost: ["Crew safe for 6 days", "All 3 hearts kept", "4 science points"],
 };
 
 export const badges = [
@@ -44,7 +44,7 @@ export const badges = [
   {
     id: "base-commander",
     name: "Base Commander",
-    how: "Keep the outpost crew safe for 6 sols",
+    how: "Keep the outpost crew safe for 6 days",
   },
 ] as const;
 export type BadgeId = (typeof badges)[number]["id"];
