@@ -14,6 +14,7 @@ import {
   ArrowRight,
   BatteryCharging,
   Camera,
+  Award,
   Check,
   ChevronRight,
   CircleHelp,
@@ -53,8 +54,28 @@ import { getMission, missions, type MissionId } from "../game/missions";
 import type { WorldHandle } from "../game/world";
 import { fieldNotes } from "../data/field-notes";
 import { type WeatherReport, historicalEvent } from "../game/space-weather";
-import { Brand, Dialog, Settings, usePreferences, chime } from "./Controls";
+import {
+  Brand,
+  Dialog,
+  Hints,
+  Settings,
+  StarRow,
+  chime,
+  useGameInput,
+  usePreferences,
+  useProfile,
+} from "./Controls";
 import FieldNote from "./Science";
+import { isDirection } from "../game/input";
+import { play } from "../game/sfx";
+import {
+  badges,
+  profileStore,
+  quizzes,
+  runBadges,
+  starNames,
+  type BadgeId,
+} from "../game/profile";
 
 function roomStore(id: MissionId) {
   const first = decodeSession(id, null);
@@ -96,7 +117,106 @@ const meterIcons: Record<string, typeof Sun> = {
   Rocks: Mountain,
   Photos: Camera,
 };
-type Panel = "photo" | "settings" | "pause" | "help" | null;
+type Panel = "photo" | "settings" | "pause" | "help" | "result" | null;
+
+function Result({
+  id,
+  message,
+  fresh,
+  sound,
+  nextHref,
+  nextLabel,
+  restart,
+}: {
+  id: MissionId;
+  message: string;
+  fresh: BadgeId[];
+  sound: boolean;
+  nextHref: string;
+  nextLabel: string;
+  restart: () => void;
+}) {
+  const stars = useProfile().stars[id];
+  const quiz = quizzes[id];
+  const [wrong, setWrong] = useState<number[]>([]);
+  const next = useRef<HTMLAnchorElement>(null);
+  const solved = stars[2];
+  const options = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (solved) next.current?.focus();
+  }, [solved]);
+  useEffect(() => {
+    // A wrong answer switches off; the next answer takes the focus.
+    if (wrong.length)
+      options.current
+        ?.querySelector<HTMLElement>("button:not([disabled])")
+        ?.focus();
+  }, [wrong]);
+  function answer(i: number) {
+    if (i === quiz.answer) {
+      profileStore.award({ stage: id, stars: [false, false, true] });
+      if (sound) play("star");
+    } else {
+      setWrong([...wrong, i]);
+      if (sound) play("nope");
+    }
+  }
+  return (
+    <div className="result">
+      <div className="big-stars">
+        <StarRow stars={stars} names={starNames.room} size={46} />
+      </div>
+      <p className="result-message">{message}</p>
+      <ul className="star-list">
+        {starNames.room.map((name, i) => (
+          <li key={name} className={stars[i] ? "got" : ""}>
+            {stars[i] ? "★" : "☆"} {name}
+            {!stars[i] && i === 1 && " · walk to NOVA next time"}
+          </li>
+        ))}
+      </ul>
+      {fresh.map((badge) => (
+        <p className="new-badge" key={badge}>
+          <Award size={18} /> New badge:{" "}
+          <b>{badges.find((b) => b.id === badge)?.name}</b>
+        </p>
+      ))}
+      <section className="quiz" aria-live="polite" ref={options}>
+        <h3>{solved ? "Star question solved!" : "Star question"}</h3>
+        <p>{quiz.ask}</p>
+        {solved ? (
+          <p className="quiz-why">{quiz.why}</p>
+        ) : (
+          <>
+            {quiz.options.map((option, i) => (
+              <button
+                key={option}
+                className="menu-choice"
+                data-autofocus={i === 0 ? "" : undefined}
+                disabled={wrong.includes(i)}
+                onClick={() => answer(i)}
+              >
+                {option}
+              </button>
+            ))}
+            {wrong.length > 0 && (
+              <p className="quiz-why">Not quite. Try another answer!</p>
+            )}
+          </>
+        )}
+      </section>
+      <Link className="primary" href={nextHref} ref={next}>
+        {nextLabel} <ArrowRight size={18} />
+      </Link>
+      <button className="menu-choice" onClick={restart}>
+        <RotateCcw size={17} /> Play again
+      </button>
+      <Link className="menu-choice" href="/">
+        <Map size={17} /> Mission map
+      </Link>
+    </div>
+  );
+}
 
 export default function AdventureRoom({ id }: { id: MissionId }) {
   const m = getMission(id),
@@ -110,6 +230,54 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
   const host = useRef<HTMLDivElement>(null),
     world = useRef<WorldHandle | null>(null);
   const paused = useRef(false);
+  const profile = useProfile();
+  const [fresh, setFresh] = useState<BadgeId[]>([]);
+  const openPhoto = useCallback(() => {
+    setPanel("photo");
+    profileStore.award({ stage: id, stars: [false, true, false] });
+  }, [id]);
+  useEffect(() => {
+    if (!run.done) return;
+    const earned = profileStore.award({
+      stage: id,
+      stars: [true, false, false],
+      badges: runBadges(run),
+    });
+    const { reducedMotion, sound } = prefs.get().prefs;
+    const timer = setTimeout(
+      () => {
+        if (earned.fresh.length) setFresh(earned.fresh);
+        if (sound && earned.changed) play("win");
+        setPanel((open) => open ?? "result");
+      },
+      reducedMotion ? 250 : id === "go" ? 1900 : 1200,
+    );
+    return () => clearTimeout(timer);
+    // Only the moment of completion matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.done, id, prefs]);
+  useGameInput((press) => {
+    if (panel) return false;
+    const el = document.activeElement as HTMLElement | null;
+    const onControl = !!el && el !== document.body && el.tagName !== "CANVAS";
+    if (isDirection(press.btn)) {
+      // Walking always wins, so a clicked button never traps the keys.
+      if (onControl) el.blur();
+      return true;
+    }
+    switch (press.btn) {
+      case "a":
+        if (onControl && press.source === "keys") return false;
+        if (!world.current?.interact()) setPanel(run.done ? "result" : null);
+        return true;
+      case "x":
+        openPhoto();
+        return true;
+      default:
+        setPanel("pause");
+        return true;
+    }
+  });
   useEffect(() => {
     store.restore();
     prefs.dispatch({ type: "select", id });
@@ -143,7 +311,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
         world.current = startWorld(host.current, id, {
           state: store.get,
           activate,
-          photo: () => setPanel("photo"),
+          photo: openPhoto,
           ready: () => {
             if (!disposed) setStatus("ready");
           },
@@ -164,19 +332,25 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
       world.current?.destroy();
       world.current = null;
     };
-  }, [id, store, prefs, activate]);
+  }, [id, store, prefs, activate, openPhoto]);
   useEffect(() => {
     paused.current = !!panel;
     world.current?.setMotion(state.prefs.reducedMotion, !!panel);
   }, [state.prefs.reducedMotion, panel]);
-  const close = () => setPanel(null);
+  // After a finished mission, closing a card returns to the stars.
+  const close = () =>
+    setPanel(run.done && panel !== "result" ? "result" : null);
   const restart = () => {
     store.reset();
     world.current?.reset();
+    setFresh([]);
     setPanel(null);
   };
   const options = stations(run),
-    next = missions[missions.findIndex((x) => x.id === id) + 1];
+    index = missions.findIndex((x) => x.id === id),
+    next = missions[index + 1];
+  const nextHref = next ? "/missions/" + next.id : "/outpost",
+    nextLabel = next ? "Go to " + next.place : "Final mission: Outpost";
   return (
     <div
       className={"flight-deck room" + (state.prefs.largeText ? " large" : "")}
@@ -204,9 +378,13 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
             <Link className="back-link" href="/">
               <ArrowLeft size={15} /> Mission map
             </Link>
+            <p className="mission-chip">
+              Mission {index + 1} of 4 · {m.name}
+              <StarRow stars={profile.stars[id]} names={starNames.room} />
+            </p>
             <h1>{m.place}</h1>
           </div>
-          <button className="photo-button" onClick={() => setPanel("photo")}>
+          <button className="photo-button" onClick={openPhoto}>
             <Camera size={18} />
             <span>NASA photo</span>
           </button>
@@ -304,11 +482,15 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
                 <RotateCcw size={21} />
                 <b>Play again</b>
               </button>
-              <Link
-                className="next-mission"
-                href={next ? "/missions/" + next.id : "/"}
+              <button
+                className="station-action"
+                onClick={() => setPanel("result")}
               >
-                {next ? "Go to " + next.place : "Back to the map"}
+                <Award size={21} />
+                <b>See my stars</b>
+              </button>
+              <Link className="next-mission" href={nextHref}>
+                {nextLabel}
                 <ArrowRight size={18} />
               </Link>
             </>
@@ -318,14 +500,35 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           run.id === "explore" &&
           run.samples > 0 &&
           !run.done && (
-            <button className="radio-link" onClick={() => setPanel("photo")}>
+            <button className="radio-link" onClick={openPhoto}>
               <Radio size={16} /> Practice storm ·{" "}
               {report?.kind === "catalog" ? "NASA report" : "NASA archive"} ·{" "}
               {(report?.event ?? historicalEvent).time.slice(0, 10)}{" "}
               <ChevronRight size={14} />
             </button>
           )}
+        <Hints
+          items={[
+            ["move", "Walk"],
+            ["a", "Use"],
+            ["x", "NASA card"],
+            ["b", "Menu"],
+          ]}
+        />
       </main>
+      {panel === "result" && (
+        <Dialog title="Mission complete!" close={close}>
+          <Result
+            id={id}
+            message={run.message}
+            fresh={fresh}
+            sound={state.prefs.sound}
+            nextHref={nextHref}
+            nextLabel={nextLabel}
+            restart={restart}
+          />
+        </Dialog>
+      )}
       {panel === "settings" && (
         <Settings prefs={state.prefs} toggle={toggle} close={close} />
       )}
@@ -345,17 +548,17 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
               alt="Your astronaut"
             />
             <p>
-              Tap the ground to walk. Tap a thing to walk over and use it. The
-              buttons do the same thing.
+              Walk with the arrows, W A S D or your controller stick. Stand
+              beside a thing and press Space or A to use it.
             </p>
           </div>
           <p>
-            Keyboard: focus the picture. Use the arrows or W A S D to walk.
-            Press Space beside a thing to use it.
+            Earn 3 stars: finish the mission, visit NOVA for a real NASA photo
+            card, and solve the star question.
           </p>
           <p>
-            Visit NOVA for a real space photo. The sparks on your screen count
-            game power.
+            Esc or B opens the menu. Tapping the ground or the buttons works
+            too. The sparks on your screen count game power.
           </p>
           <button className="primary" onClick={close}>
             Got it <Check size={17} />

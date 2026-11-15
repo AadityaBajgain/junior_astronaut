@@ -8,6 +8,16 @@ async function ready(page: Page) {
     timeout: 35_000,
   });
 }
+// The title screen shows once per tab; Enter starts the game.
+async function openMap(page: Page) {
+  await page.goto("/");
+  await expect(page.locator(".chart")).toHaveAttribute("data-status", "ready", {
+    timeout: 35_000,
+  });
+  if (await page.locator(".title-screen").isVisible())
+    await page.keyboard.press("Enter");
+  await expect(page.locator(".title-screen")).toHaveCount(0);
+}
 async function actAt(page: Page, spot: string, next: number) {
   await page.locator('[data-spot="' + spot + '"]').click();
   await expect(field(page)).toHaveAttribute("data-turn", String(next));
@@ -25,12 +35,7 @@ test("four map islands enter four real pages, each with its own credited NASA ph
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   for (const [i, m] of missions.entries()) {
-    await page.goto("/");
-    await expect(page.locator(".chart")).toHaveAttribute(
-      "data-status",
-      "ready",
-      { timeout: 35_000 },
-    );
+    await openMap(page);
     const canvas = page.locator("canvas");
     const box = (await canvas.boundingBox())!,
       node = anchors(box.width < 680)[i];
@@ -99,7 +104,10 @@ test("scene click walks to the air tank; keys move the astronaut and Space uses 
   await page.reload();
   await ready(page);
   await expect(field(page)).toHaveAttribute("data-complete", "true");
-  await page.getByRole("link", { name: "Go to Moon outpost" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: "Go to Moon outpost" })
+    .click();
   await ready(page);
   await expect(page.locator(".dialogue-bar")).toContainText(
     "spare battery made it",
@@ -128,7 +136,10 @@ test("landing, greenhouse and rover loops finish, replay, and show different con
     for (let i = 0; i < moves.length; i++) await actAt(page, moves[i], i + 1);
     await expect(field(page)).toHaveAttribute("data-complete", "true");
     await expect(page.locator(".dialogue-bar")).toContainText(message);
-    await page.getByRole("button", { name: "Play again" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Play again" })
+      .click();
     await expect(field(page)).toHaveAttribute("data-turn", "0");
     await expect(field(page)).toHaveAttribute("data-complete", "false");
   }
@@ -136,8 +147,9 @@ test("landing, greenhouse and rover loops finish, replay, and show different con
 
 test("phone touch, larger words and archived field notes work with external traffic blocked", async ({
   browser,
-}) => {
+}, testInfo) => {
   const ctx = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
@@ -150,7 +162,11 @@ test("phone touch, larger words and archived field notes work with external traf
       : r.abort(),
   );
   await page.route("**/api/space-weather", (r) => r.abort());
-  await page.goto("http://127.0.0.1:3174/");
+  await page.goto("/");
+  await expect(page.locator(".chart")).toHaveAttribute("data-status", "ready", {
+    timeout: 35_000,
+  });
+  await page.getByRole("button", { name: /to start/ }).tap();
   await page.getByRole("button", { name: "Settings" }).tap();
   await page.getByRole("checkbox", { name: "Larger words" }).check();
   await page.getByRole("button", { name: "Done" }).tap();
@@ -231,4 +247,151 @@ test("Moon night visibly darkens the terrain and pause freezes the scene", async
   );
   await page.getByRole("button", { name: "Keep playing" }).click();
   await actAt(page, "middle", 4);
+});
+
+test("keyboard only: title, map, a whole mission, the star quiz and the next room", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openMap(page);
+  // The next unfinished mission already has the focus.
+  await expect(
+    page.getByRole("link", { name: "Go · Earth launchpad" }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("link", { name: "Land · Moon outpost" }),
+  ).toBeFocused();
+  await page.keyboard.press("a");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/missions\/go$/);
+  await ready(page);
+  const hold = async (key: string, ms: number) => {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(key);
+  };
+  await page.keyboard.press("Space"); // the gear case is closest
+  await expect(field(page)).toHaveAttribute("data-turn", "1");
+  await hold("a", 1700);
+  await page.keyboard.press("Space"); // air tank
+  await expect(field(page)).toHaveAttribute("data-turn", "2");
+  await hold("ArrowRight", 3300);
+  await page.keyboard.press("Space"); // rocket
+  await expect(field(page)).toHaveAttribute("data-complete", "true");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Mission complete!");
+  await expect(dialog).toContainText("New badge");
+  await page.keyboard.press("Enter"); // a wrong answer switches off
+  await expect(dialog).toContainText("Not quite");
+  await page.keyboard.press("Enter"); // the next answer is right
+  await expect(dialog).toContainText("Star question solved!");
+  await expect(
+    dialog.getByRole("link", { name: "Go to Moon outpost" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/missions\/land$/);
+  await ready(page);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toContainText("Game paused");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("button", { name: /Trophy room/ })).toContainText(
+    "2/15",
+  );
+});
+
+test("a gamepad starts the game, enters a room, walks and uses things", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    const pad = {
+      connected: true,
+      mapping: "standard",
+      axes: [0, 0],
+      buttons: Array.from({ length: 16 }, () => ({ pressed: false })),
+    };
+    Object.assign(window, { fakePad: pad });
+    navigator.getGamepads = () => [pad as unknown as Gamepad];
+  });
+  const press = async (button: number) => {
+    await page.evaluate((b) => {
+      (
+        window as unknown as { fakePad: { buttons: { pressed: boolean }[] } }
+      ).fakePad.buttons[b].pressed = true;
+    }, button);
+    await page.waitForTimeout(120);
+    await page.evaluate((b) => {
+      (
+        window as unknown as { fakePad: { buttons: { pressed: boolean }[] } }
+      ).fakePad.buttons[b].pressed = false;
+    }, button);
+    await page.waitForTimeout(120);
+  };
+  await page.goto("/");
+  await expect(page.locator(".chart")).toHaveAttribute("data-status", "ready", {
+    timeout: 35_000,
+  });
+  await press(0);
+  await expect(page.locator(".title-screen")).toHaveCount(0);
+  await expect(page.locator(".hints")).toContainText("STICK");
+  await press(0);
+  await expect(page).toHaveURL(/\/missions\/go$/);
+  await ready(page);
+  await press(0);
+  await expect(field(page)).toHaveAttribute("data-turn", "1");
+  await page.evaluate(() => {
+    (window as unknown as { fakePad: { axes: number[] } }).fakePad.axes[0] = -1;
+  });
+  await page.waitForTimeout(1700);
+  await page.evaluate(() => {
+    (window as unknown as { fakePad: { axes: number[] } }).fakePad.axes[0] = 0;
+  });
+  await press(0);
+  await expect(field(page)).toHaveAttribute("data-turn", "2");
+  await press(1);
+  await expect(page.getByRole("dialog")).toContainText("Game paused");
+});
+
+test("Outpost Commander: six sols of balancing power, air, food and shelter with keys only", async ({
+  page,
+}) => {
+  await page.goto("/outpost");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Commander, your base!");
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  // air, greenhouse, shelter, lab for each sol
+  const plans = [
+    [1, 2, 0, 2],
+    [1, 1, 1, 1],
+    [1, 0, 0, 1],
+    [1, 0, 1, 0],
+    [1, 1, 0, 1],
+    [1, 0, 1, 1],
+  ];
+  for (const [sol, plan] of plans.entries()) {
+    await expect(page.locator(".system-list")).toHaveAttribute(
+      "data-sol",
+      String(sol + 1),
+    );
+    for (const sparks of plan) {
+      for (let i = 0; i < sparks; i++) await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowDown");
+    }
+    await page.keyboard.press("Space");
+    await expect(dialog).toContainText("Sol " + (sol + 1) + " report");
+    await page.keyboard.press("Enter");
+  }
+  await expect(dialog).toContainText("Outpost safe!");
+  await expect(dialog.getByRole("img", { name: "3 of 3 stars" })).toBeVisible();
+  await expect(dialog).toContainText("Base Commander");
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+    .toBe(true);
 });

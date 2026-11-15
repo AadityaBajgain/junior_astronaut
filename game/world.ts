@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { MissionId } from "./missions";
 import { stations, type Run, type Spot } from "./adventure";
+import { input } from "./input";
 import {
   cells,
   drawPlant,
@@ -26,20 +27,12 @@ type Prop = {
 };
 const height = 300;
 const poses = ["front", "walk-a", "walk-b", "side-a", "side-b", "back"];
-const movementKeys = [
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "ArrowDown",
-  "a",
-  "d",
-  "w",
-  "s",
-];
 const clamp = Phaser.Math.Clamp;
 const approach = (p: number) => 1 - Math.pow(1 - p, 3);
 export type WorldHandle = {
   travel: (target: Target) => void;
+  /** Uses the nearest object, as the A button does. False when nothing is near. */
+  interact: () => boolean;
   setMotion: (reduced: boolean, paused: boolean) => void;
   reset: () => void;
   destroy: () => void;
@@ -79,7 +72,7 @@ export function startWorld(
     target: Target | null = null;
     queued: Target | null = null;
     via: Point | null = null;
-    keys = new Set<string>();
+    prompt!: Phaser.GameObjects.Text;
     clock = 0;
     stride = 0;
     face = "front";
@@ -142,6 +135,14 @@ export function startWorld(
         .text(0, 0, "PHOTO", { ...labelStyle, color: "#9ef3d4" })
         .setOrigin(0.5, 0)
         .setDepth(364);
+      this.prompt = this.add
+        .text(0, 0, "", {
+          ...labelStyle,
+          color: "#172232",
+          backgroundColor: "#ffcf71",
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(430);
       this.actor = this.add.image(0, 0, "front").setOrigin(0.5, 1);
       this.shadow = this.add.ellipse(0, 0, 25, 7, 0x28202e, 0.29).setDepth(4);
       const canvas = this.game.canvas;
@@ -149,12 +150,8 @@ export function startWorld(
       canvas.setAttribute("role", "group");
       canvas.setAttribute(
         "aria-label",
-        "Astronaut play area. Arrow keys or W A S D to walk. Space to use a nearby object. Tab for action buttons.",
+        "Astronaut play area. Arrow keys, W A S D or a controller to walk. Space or A to use a nearby object.",
       );
-      canvas.addEventListener("keydown", this.keyDown);
-      canvas.addEventListener("keyup", this.keyUp);
-      canvas.addEventListener("blur", this.clearKeys);
-      window.addEventListener("blur", this.clearKeys);
       this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
         if (paused) return;
         canvas.focus({ preventScroll: true });
@@ -171,10 +168,6 @@ export function startWorld(
         canvas.style.cursor = this.pointAt ? "pointer" : "crosshair";
       });
       this.events.once("shutdown", () => {
-        canvas.removeEventListener("keydown", this.keyDown);
-        canvas.removeEventListener("keyup", this.keyUp);
-        canvas.removeEventListener("blur", this.clearKeys);
-        window.removeEventListener("blur", this.clearKeys);
         this.started = false;
       });
       this.started = true;
@@ -182,29 +175,14 @@ export function startWorld(
       this.paint(false);
       hooks.ready();
     }
-    clearKeys = () => {
-      this.keys.clear();
-    };
-    keyUp = (e: KeyboardEvent) => {
-      this.keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key);
-    };
-    keyDown = (e: KeyboardEvent) => {
-      if (paused || e.altKey || e.ctrlKey || e.metaKey) return;
-      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      if (movementKeys.includes(key)) {
-        e.preventDefault();
-        this.keys.add(key);
-        this.destination = this.via = null;
-        this.target = null;
-      } else if ((key === " " || key === "Enter") && !e.repeat) {
-        e.preventDefault();
-        const near = this.nearest();
-        if (near) this.visit(near);
-      }
-    };
+    interact() {
+      const near = this.nearest();
+      if (!near || paused) return false;
+      this.visit(near);
+      return true;
+    }
     reset() {
       if (!this.started) return;
-      this.clearKeys();
       this.effect = null;
       this.destination = this.via = null;
       this.target = this.queued = null;
@@ -285,7 +263,7 @@ export function startWorld(
     }
     nearest(): Target | null {
       let result: Target | null = null,
-        best = 50;
+        best = Infinity;
       for (const target of this.targets()) {
         const p =
           target === "photo"
@@ -377,13 +355,13 @@ export function startWorld(
     }
     walk(dt: number) {
       if (this.busy()) return false;
-      let dx =
-        Number(this.keys.has("ArrowRight") || this.keys.has("d")) -
-        Number(this.keys.has("ArrowLeft") || this.keys.has("a"));
-      let dy =
-        Number(this.keys.has("ArrowDown") || this.keys.has("s")) -
-        Number(this.keys.has("ArrowUp") || this.keys.has("w"));
+      let dx = Number(input.held("right")) - Number(input.held("left"));
+      let dy = Number(input.held("down")) - Number(input.held("up"));
       const manual = dx !== 0 || dy !== 0;
+      if (manual) {
+        this.destination = this.via = null;
+        this.target = null;
+      }
       const dest = this.via ?? this.destination;
       if (!manual && dest) {
         dx = dest.x - this.pos.x;
@@ -415,10 +393,7 @@ export function startWorld(
     update(_t: number, delta: number) {
       if (!this.started || !mounted) return;
       const dt = Math.min(delta, 50);
-      if (paused) {
-        this.clearKeys();
-        return;
-      }
+      if (paused) return;
       if (!reduced) this.clock += dt;
       if (this.effect)
         this.effect.elapsed = reduced
@@ -815,6 +790,28 @@ export function startWorld(
         )
         .setDepth(b.y);
       this.photoTag.setPosition(b.x, b.y + 2);
+      // A bouncing button hint floats over the thing the A button would use.
+      const hint = this.target || this.busy() ? null : nearest;
+      if (hint) {
+        const top =
+          hint === "photo"
+            ? { x: b.x, y: b.y - 30 }
+            : {
+                x: at(spots.indexOf(hint)).x,
+                y:
+                  at(spots.indexOf(hint)).y -
+                  this.props[spots.indexOf(hint)].image.displayHeight -
+                  4,
+              };
+        const word = input.devices().last === "keys" ? "SPACE" : "A";
+        if (this.prompt.text !== word) this.prompt.setText(word);
+        this.prompt.setPosition(
+          clamp(top.x, 24, width - 24),
+          Math.max(16, top.y) -
+            (reduced ? 0 : Math.abs(Math.sin(this.clock / 260)) * 4),
+        );
+      }
+      this.prompt.setVisible(!!hint);
       const alt = Math.floor(this.stride / 130) % 2 === 0;
       const pose =
         this.face === "side"
@@ -860,6 +857,8 @@ export function startWorld(
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { pixelArt: true, roundPixels: true },
     audio: { noAudio: true },
+    // Taps on dialogs and buttons outside the canvas must never reach the scene.
+    input: { windowEvents: false },
     fps: { target: 45 },
     banner: false,
   });
@@ -876,10 +875,10 @@ export function startWorld(
   observer.observe(host);
   return {
     travel: (t) => room.visit(t),
+    interact: () => room.started && room.interact(),
     setMotion: (r, p) => {
       reduced = r;
       paused = p;
-      if (p) room.clearKeys();
     },
     reset: () => room.reset(),
     destroy: () => {

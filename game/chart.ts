@@ -118,6 +118,8 @@ export function mountChart(
     scene: Chart,
     render: { antialias: true, roundPixels: true },
     audio: { noAudio: true },
+    // Taps on dialogs and buttons outside the canvas must never reach the scene.
+    input: { windowEvents: false },
     banner: false,
     scale: { mode: Phaser.Scale.NONE },
     fps: { target: 30 },

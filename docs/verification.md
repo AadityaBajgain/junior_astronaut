@@ -23,3 +23,11 @@ The update turns the four map destinations into independent playable pages. The 
 
 These checks used installed Chrome and touch emulation. Physical-device testing, a screen-reader listening session and playtesting with children remain open.
 
+
+## Game-feel and controller update · November 15, 2026
+
+| Check | Result |
+| --- | --- |
+| `npm run lint`, `npm test` | ESLint passed. 18 unit tests passed, adding key, serial-line and gamepad mapping, stars, badges, ranks, corrupt reward saves and the Outpost Commander rules (budget limits, battery cap, a losing all-science plan, a three-star plan and a missed shelter). |
+| `npm run test:e2e` | 9 Chrome tests passed against the running dev server. New tests play from the title screen through the Go mission, the star question and into the next room using keys only; drive the title, map and a room with a simulated standard gamepad; and win Outpost Commander with three stars using keys only. |
+| Not verified | No physical gamepad or ESP32 board was connected. The Web Serial connection was not exercised in a browser; only its line parser is tested. Sounds were not listened to. Playtesting with children remains open. |

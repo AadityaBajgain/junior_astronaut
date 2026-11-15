@@ -1,6 +1,6 @@
 # JuniorAstronaut
 
-A local astronaut adventure for children. Open the mission map, pick an island and walk into its world. The four chapters can be played in order or opened individually.
+A local astronaut adventure game for children aged 7–12, built for the NASA Space Apps Junior Astronaut challenge. Press start, pick an island on the mission map and walk into its world. Four training missions (Go, Land, Live, Explore) lead to a final mission, **Outpost Commander**, where the player balances power, air, food and a storm shelter at a Moon base. The whole game plays on a keyboard, a gamepad or a home-made ESP32 controller. A mouse or touch screen is optional.
 
 ## Run the game
 
@@ -15,7 +15,19 @@ Open [the mission map](http://127.0.0.1:3173). To run an optimized build, stop t
 
 ## Play
 
-Tap the ground to walk. Tap an object to walk over and use it. On a keyboard, focus the scene, walk with the arrows or WASD and press Space or Enter beside an object. Each action button below the scene sends the same astronaut to the same object. Meet NOVA in the scene or choose **NASA photo** to see its real-world connection.
+| Button | Keyboard | Gamepad | Does |
+| --- | --- | --- | --- |
+| Directions | Arrow keys or W A S D | D-pad or stick | Walk, move through menus, give or take outpost sparks |
+| A | Space, Enter or E | A | Use the closest thing (a bouncing prompt shows which), press the highlighted button |
+| B | Esc, Backspace or Q | B | Close a card, open the pause menu |
+| X | X or I | X / Y | NASA photo card in a room, Trophy room on the map |
+| Start | P | Start | Pause |
+
+Touch and mouse still work: tap the ground to walk, tap an object to use it, or use the action buttons below the scene. See [docs/controller.md](docs/controller.md) for connecting an ESP32 controller (USB serial, Bluetooth keyboard or gamepad) and `firmware/esp32-controller/` for an example sketch.
+
+**Rewards.** Each training mission has three stars: finish the mission, find its NASA photo card (walk to NOVA), and solve the star question on the results screen. Wrong answers simply switch off, so every child can earn the star. Different strategies earn different badges, which encourages a second try. Stars raise the astronaut rank from Space Cadet to Mission Commander. Everything is stored on this device only. There are no timers, streaks, rankings, accounts or personal data. **Settings → Erase my stars and badges** resets the rewards for the next player.
+
+**Outpost Commander.** Six player-advanced sols at a Moon base. Each sol the forecast shows the sunlight and whether a practice Sun storm is coming. The player shares that sol's sparks between the air fan (life support), greenhouse (food), storm shelter (radiation protection) and science lab; leftover sparks charge a battery that holds three. Every row previews its consequence before the sol ends, and a report explains what ran and what paused. Missed needs cost a crew heart, never an injury, and a lost run is a friendly retry. Stars: finish, keep all three hearts, earn four science points. All quantities are game units.
 
 | Page | A short play-test |
 | --- | --- |
@@ -48,6 +60,9 @@ Archive fixtures and photos were checked November 14, 2026. Credits beside each 
 
 ## Project map
 
+- `game/input.ts` turns the keyboard, the browser Gamepad API and ESP32 serial lines into the same eight buttons and routes them to the open screen or dialog. `game/profile.ts` holds stars, badges, ranks and the star questions. `game/outpost.ts` holds the Outpost Commander rules. All three are pure TypeScript with unit tests. `game/sfx.ts` synthesizes the optional sounds.
+- `components/Outpost.tsx` and `app/outpost/page.tsx` are the final mission. Unlike the four rooms it is an HTML board rather than a Phaser scene.
+
 - `app/missions/[id]/page.tsx` supplies the four direct Next.js routes. `components/AdventureRoom.tsx` connects React controls, preferences, progress and the browser-only Phaser scene.
 - `game/adventure.ts` contains pure mission rules. `game/journal.ts` restores a validated versioned action history per room. Time passing or rendering a frame never advances a simulation.
 - `game/world.ts` and `game/world-art.ts` implement walking, pointer hit tests, station use, sprite poses and action-specific effects. Interactive objects and their consequences are rendered by Phaser. The engine and listeners are disposed on navigation.
@@ -57,5 +72,5 @@ Archive fixtures and photos were checked November 14, 2026. Credits beside each 
 
 ## Verification
 
-Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` and `npm run build`. Browser tests use port 3174 and local Chrome on macOS. You can select another Chromium executable with `CHROME_PATH` or install Playwright Chromium. See `docs/verification.md` for the verified paths and limits.
+Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` and `npm run build`. Browser tests use port 3174 and local Chrome on macOS. If a dev server for this folder is already running, point the tests at it instead: `BASE_URL=http://127.0.0.1:3000 npm run test:e2e`. You can select another Chromium executable with `CHROME_PATH` or install Playwright Chromium. See `docs/verification.md` for the verified paths and limits.
 

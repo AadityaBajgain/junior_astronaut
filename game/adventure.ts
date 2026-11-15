@@ -14,6 +14,7 @@ export type Run = Common &
         battery: number;
         maps: number;
         fan: boolean;
+        stalled: boolean;
       }
     | {
         id: "live";
@@ -24,6 +25,7 @@ export type Run = Common &
         route: "lamp" | "battery";
         battery: number;
         food: number;
+        rested: boolean;
       }
     | {
         id: "explore";
@@ -66,6 +68,7 @@ export function begin(id: MissionId, cargo: Cargo = "none"): Run {
         battery: Number(cargo === "battery"),
         sun: 0,
         fan: false,
+        stalled: false,
         maps: 0,
         message:
           cargo === "battery"
@@ -83,6 +86,7 @@ export function begin(id: MissionId, cargo: Cargo = "none"): Run {
         route: "lamp",
         battery: 1,
         food: 0,
+        rested: false,
         message: "Let’s grow lunch! Walk to the garden bed to plant a seed.",
       };
     case "explore":
@@ -287,7 +291,13 @@ export function act(s: Run, spot: Spot): Run {
         const fan = s.battery > 0;
         return advance(
           s,
-          { phase: "night", sun: 0, battery: Math.max(0, s.battery - 1), fan },
+          {
+            phase: "night",
+            sun: 0,
+            battery: Math.max(0, s.battery - 1),
+            fan,
+            stalled: s.stalled || !fan,
+          },
           fan
             ? "It’s dark! Your battery is turning the air fan. See it spin?"
             : "The fan is still. Our air packs help us wait for morning.",
@@ -377,7 +387,13 @@ export function act(s: Run, spot: Spot): Run {
           "The plant waited. The fan got power first. Try a sunny turn.";
       return advance(
         s,
-        { growth, wet: s.wet && !grows, sunny: !s.sunny, battery },
+        {
+          growth,
+          wet: s.wet && !grows,
+          sunny: !s.sunny,
+          battery,
+          rested: s.rested || (!s.sunny && !s.battery),
+        },
         message,
       );
     }
