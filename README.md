@@ -1,6 +1,8 @@
 # JuniorAstronaut
 
-A local astronaut adventure game for children aged 7–12, built for the NASA Space Apps Junior Astronaut challenge. Press start, pick an island on the mission map and walk into its world. Four training missions (Go, Land, Live, Explore) lead to a final mission, **Outpost Commander**, where the player balances power, air, food and a storm shelter at a Moon base. The whole game plays on a keyboard, a gamepad or a home-made ESP32 controller. A mouse or touch screen is optional.
+A Moon mission game for children aged 7–12, built for the NASA Space Apps Junior Astronaut challenge. The player packs and launches a rocket, lands and powers a Moon base, grows food in Moon soil, drives a lunar rover, and finally commands the whole outpost through six days of real Sun storms. Real NASA photos and facts pop up by themselves as tasks are finished. The whole game plays on a keyboard, a gamepad or a home-made ESP32 controller with its own display and lights. A mouse or touch screen is optional.
+
+A full first playthrough takes roughly 6 to 10 minutes: the four missions need about 41 actions between them, and the outpost adds six planned days.
 
 ## Run the game
 
@@ -11,89 +13,77 @@ npm ci
 npm run dev -- --port 3173
 ```
 
-Open [the mission map](http://127.0.0.1:3173). To run an optimized build, stop the dev server, run `npm run build` and then `npm start -- --port 3173`. Both servers listen on loopback. Installation requires access to the npm registry or a populated npm cache. Once installed, the worlds, character, equipment, fonts, photographs and archive records are local.
+Open [the mission map](http://127.0.0.1:3173). For an optimized build run `npm run build` and then `npm start -- --port 3173`. No API key, account or environment variable is needed.
 
-## Play
+## Controls
 
-| Button | Keyboard | Gamepad | Does |
-| --- | --- | --- | --- |
-| Directions | Arrow keys or W A S D | D-pad or stick | Walk, move through menus, give or take outpost sparks |
-| A | Space, Enter or E | A | Use the closest thing (a bouncing prompt shows which), press the highlighted button |
-| B | Esc, Backspace or Q | B | Close a card, open the pause menu |
-| X | X or I | X / Y | NASA photo card in a room, Trophy room on the map |
-| Start | P | Start | Pause |
+| Button     | Keyboard              | Gamepad        | Does                                                                                |
+| ---------- | --------------------- | -------------- | ----------------------------------------------------------------------------------- |
+| Directions | Arrow keys or W A S D | D-pad or stick | Walk, move through menus, give or take outpost sparks                               |
+| A          | Space, Enter or E     | A              | Use the closest thing (a bouncing prompt shows which), press the highlighted button |
+| X          | X or I                | X / Y          | Jump in a mission, Trophy room on the map, space weather in the outpost             |
+| B          | Esc, Backspace or Q   | B              | Close a card, open the pause menu                                                   |
+| Start      | P                     | Start          | Pause                                                                               |
+| —          | F                     | —              | Full screen                                                                         |
 
-Touch and mouse still work: tap the ground to walk, tap an object to use it, or use the action buttons below the scene. See [docs/controller.md](docs/controller.md) for connecting an ESP32 controller (USB serial, Bluetooth keyboard or gamepad) and `firmware/esp32-controller/` for an example sketch.
+Touch and mouse also work. See [docs/controller.md](docs/controller.md) for the ESP32 controller: buttons in, and level names, actions, a walking animation and green/red lights out.
 
-**Rewards.** Each training mission has three stars: finish the mission, find its NASA photo card (walk to NOVA), and solve the star question on the results screen. Wrong answers simply switch off, so every child can earn the star. Different strategies earn different badges, which encourages a second try. Stars raise the astronaut rank from Space Cadet to Mission Commander. Everything is stored on this device only. There are no timers, streaks, rankings, accounts or personal data. **Settings → Erase my stars and badges** resets the rewards for the next player.
+## The missions
 
-**Outpost Commander.** Six player-advanced days at a Moon base. The Sun storms are real: the game replays May 8–13, 2024 from NASA's DONKI catalog (`data/storm-week.json`). A day is a storm day only when an instrument recorded particles (May 10, 11 and 13). May 9 had model alerts only, so NOVA reports a warning with no storm, which is a chance to talk about forecasts versus measurements. The player shares each day's sparks between the air fan (life support), greenhouse (food), storm shelter (radiation protection) and science lab; leftover sparks charge a battery that holds three. Every row previews its consequence, a report explains what ran and what paused, and each report ends with one sourced real space fact (`data/facts.ts`). Missed needs cost a crew heart, never an injury. Sparks, hearts, food and sunlight amounts are game units; those DONKI events were recorded by spacecraft near Earth, not at a Moon base.
+Everything happens on the way to the Moon or on it. Each mission is a Phaser scene with three stations, and only arriving at a station changes the game. Nothing needs fast reflexes.
 
-**Is the radiation live?** No public feed gives a live radiation reading from the surface of the Moon or Mars, so the game does not pretend to have one. The **Space weather station** (map strip, Outpost **X**, Explore card) shows three clearly labelled things: a **LIVE** count of fast Sun protons near Earth, which is also the Moon's neighbourhood (≥10 MeV integral flux from the primary GOES satellite, NOAA SWPC JSON, refreshed every five minutes, with NOAA's S-scale where a storm starts at 10 pfu); an archived Mars measurement (Curiosity RAD, 0.67 mSv/day, 2012–13); and an archived Moon measurement (1.37 mSv/day from the Chang'E-4 lander's LND instrument in 2019, which is not a NASA instrument and is labelled so). If the live feed fails or is older than three hours the strip says it is unavailable.
+| Mission                       | What the player does                                                                                                                     | Constraints                                                                                                                                                               |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Go** · Earth launchpad      | Pack air, test the suit, choose a battery or a camera, pump three loads of fuel, launch                                                  | Two cargo spaces; no launch without air, a checked suit and a full tank. The chosen item changes a later mission.                                                         |
+| **Land** · Moon landing site  | Pick a landing site, then spend each day's spare sun sparks on charging the battery or scanning dark craters, and survive **two** nights | Battery holds 2; each night uses 1; an empty battery pauses the fan (recoverable)                                                                                         |
+| **Live** · Moon greenhouse    | Grow **two** salads in Moon soil: plant, water, and choose each shift whether sunlight feeds the lamp or the battery                     | 4 drinks of water, exactly enough; the fan takes battery power first in dark shifts; battery holds 3                                                                      |
+| **Explore** · Moon rover trek | Drive out, collect up to three rocks, recharge the rover, get home                                                                       | Every job outside uses suit air (6); rocks and driving use rover power (4); charging trades air for power; running out of air is a safe automatic ride home with one rock |
+| **Outpost Commander**         | Six days at a Moon base. Share each day's sparks between the air fan, greenhouse, water recycler, storm shelter and lab                  | Battery holds 3; the crew eats and drinks every day; real storm days need the shelter; missed needs cost a crew heart                                                     |
 
-**Full screen.** On anything larger than a phone the game fills the window with no page scrolling. The toolbar button or the **F** key switches the browser to true full screen.
+**Moon gravity.** Jumping uses real numbers: the same push-off speed under 9.81 m/s² on the launchpad and 1.62 m/s² on the Moon. A Moon jump rises six times higher and lasts six times longer, and walking on the Moon is a chain of slow hops. The first Moon jump unlocks the gravity fact card.
 
-**Plain words and classrooms.** A "Space words" list (radiation, mSv, Sun storm, sol, life support) sits in the help, briefing and weather screens. The Trophy room and the Outpost results hold a "For grown-ups and classrooms" fold with discussion questions and every real finding with its source link.
+**Fact cards.** Thirteen cards appear automatically, each when a task is completed (packing air, filling the tank, touching down, the first scan, the first sprout, the first rock, and so on). A card shows an archive NASA photo, one sentence for children, the photo caption and credit. The **Fact cards** button and the pause menu open the album, where each card links to its source. `data/cards.ts` holds them.
 
-| Page | A short play-test |
-| --- | --- |
-| [Go · Earth launchpad](http://127.0.0.1:3173/missions/go) | Load an air tank. Pack the battery or swap it for the camera. Launch and watch the rocket lift off. A delivered battery gives a new Moon run an extra reserve. A delivered camera lets a new Mars rock hunt photograph each sample. |
-| [Land · Moon outpost](http://127.0.0.1:3173/missions/land) | On the sunny rim, charge once and scan once. Start night and watch the fan use the battery. Replay and spend both spare sun sparks on scans. With no other battery, the fan pauses and air packs let the crew wait for a new day. The flat site offers a different starting reserve. |
-| [Live · Mars greenhouse](http://127.0.0.1:3173/missions/live) | Plant a seed, water it, and advance a sunny shift with the lamp connected. The seed sprouts. Water again and let the next sunny shift grow the leaves. Pick the lettuce. Try sending the spare sunlight to the battery and see the watered plant wait. |
-| [Explore · Mars rock hunt](http://127.0.0.1:3173/missions/explore) | Ride out, collect a rock and check the dated NASA report during the practice storm. Head home or spend one more spark to bring back another rock. Watch the rover, samples and shelter. |
+**Stars and badges.** Each mission has three stars: finish it, reach its harder expert goal (for example, three rocks without a rescue), and solve the star question. Twelve badges reward different strategies. Stars raise the rank from Space Cadet to Mission Commander. Everything is stored on the device only: no timers, streaks, rankings, accounts or personal data. **Settings → Erase my stars and badges** resets them.
 
-**Pause** freezes movement and animations. **Settings** controls larger words, reduced motion and sound. Sound starts off. Reduced motion moves the astronaut straight to the chosen object and keeps the outcome visible. The photo card offers **Read to me** on browsers with an installed English speech voice. A short completed room can be replayed immediately.
+## Real data
 
-Each room saves completed decisions on this device. Refreshing replays those decisions without spending extra power. **Pause → Start this room again** begins a fresh run and picks up the gear from the most recently completed launch when available. The four rooms also have independent default loadouts. Blocked storage allows play in the open room.
+| Where                  | What                                                                                                                                                                      | Source                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fact cards             | Apollo 8, 11, 12, 15, 16 and 17 photographs, the lunar south pole, the Lunar Reconnaissance Orbiter, the Veggie plant experiment and Space Station water recycling        | NASA Image and Video Library and nasa.gov pages, linked from every card                                                                               |
+| Moon facts             | Gravity one-sixth of Earth's; average distance 384,400 km; about 127°C in full Sun and −173°C in darkness                                                                 | [NASA Moon facts](https://science.nasa.gov/moon/facts/)                                                                                               |
+| Samples and soil       | 382 kg of Apollo samples; plants grown in lunar soil from Apollo 11, 12 and 17                                                                                            | [NASA curation](https://curator.jsc.nasa.gov/lunar/) · [NASA plant study](https://www.nasa.gov/humans-in-space/scientists-grow-plants-in-lunar-soil/) |
+| Outpost storms         | The six days replay May 8–13, 2024. A day is a storm day only when an instrument recorded a solar energetic particle event (May 10, 11, 13). May 9 had model alerts only. | [NASA CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/), saved in `data/storm-week.json`                                                           |
+| Space weather station  | **Live** count of fast Sun protons near Earth and the Moon (≥10 MeV, primary GOES satellite), refreshed every five minutes, with NOAA's storm scale                       | [NOAA SWPC](https://www.swpc.noaa.gov/products/goes-proton-flux)                                                                                      |
+| Moon surface radiation | 1.37 mSv/day measured in 2019 by the Chang'E-4 lander's LND instrument. It is not a NASA instrument and the game says so.                                                 | Zhang et al., Science Advances, 2020                                                                                                                  |
 
-## NASA data, photos and why they are here
-
-Each room has one picture, one idea in child-friendly language, a nearby credit, and expandable source details. Photographs and reports are educational archives unless a dated DONKI catalog response is explicitly identified. The pixel landscapes, equipment, power sparks, growth speed, storm drill and fan behavior are game representations. The map illustrates a journey and uses no calculated planetary positions.
-
-| Room | What is used and why | Original NASA records |
-| --- | --- | --- |
-| Go | Apollo 11’s three-person crew makes packing air concrete. The archive photo shows Saturn V vehicle SA-506 lifting off from Kennedy Space Center on July 16, 1969. Credit NASA. | [Launch photograph and caption](https://www.nasa.gov/image-article/apollo-11-lifts-off-3/) · [Mission and crew](https://www.nasa.gov/mission/apollo-11/) |
-| Land | Solar-powered Surveyor 3 last contacted Earth on May 4, 1967, two Earth days into lunar night. The player can see how a stored supply keeps a game device working after sunset. The later Apollo 12 photo AS12-48-7121 shows Surveyor 3 in the Ocean of Storms on November 20, 1969. Credit NASA/JSC. | [Mission account and last contact](https://science.nasa.gov/solar-system/moon/footpads-and-footprints-humans-and-machine-meet-on-the-moon/) · [Lunar photograph](https://science.nasa.gov/resource/view-of-surveyor-iii-in-its-crater/) |
-| Live | This red romaine lettuce was 28 days old in a prototype Veggie planting pillow at Kennedy Space Center on Earth. The photo and age connect light, water and patience to a real plant experiment. The NASA article dates to April 10, 2014. Credit NASA/Bryan Onate. | [Veggie prototype photograph and experiment](https://www.nasa.gov/missions/station/veggie-will-expand-fresh-food-production-on-space-station/) |
-| Explore | Curiosity’s Radiation Assessment Detector (RAD) measured an average dose equivalent rate of **0.67 mSv/day** at Gale Crater on Mars from **August 2012 through June 2013**. A child can meet the rover that carried the instrument and see why crews plan shelter. NASA release 13-366 was published December 9, 2013. The separate MAHLI self-portrait PIA16238 was taken at Rocknest on October 31, 2012 (Sol 84). Credit NASA/JPL-Caltech/Malin Space Science Systems. | [Radiation report](https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/) · [Archive photo record](https://science.nasa.gov/resource/preliminary-self-portrait-of-curiosity-by-rovers-arm-camera/) |
-| Explore space radio | The server queries the latest 30 UTC calendar dates for instrument-reported solar energetic particle events. A dated event supplies the radio story for the child's shelter decision. Local Mars dose and safe exposure limits cannot be derived from an event entry. The drill always gives the child time to choose. | [NASA CCMC DONKI system, contributors and use policy](https://ccmc.gsfc.nasa.gov/tools/DONKI/) · [Web service docs](https://ccmc.gsfc.nasa.gov/DONKI/api/) |
-
-**When the catalog is unavailable.** The bundled example is the May 10, 2024 particle event at 13:35 UTC, ID `2024-05-10T13:35:00-SEP-001`, recorded by `GOES-P: SEISS >10 MeV`. MeV is particle energy. The interface labels the example **Archived NASA event**. If NASA returns an empty list, the card reports the empty observation window and uses the dated archive for the drill. An empty catalog response provides no safety assessment. NASA CCMC DONKI and the Moon to Mars Space Weather Analysis Office supply the catalog. [Individual event](https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1) · [Reproducible archive query](https://ccmc.gsfc.nasa.gov/DONKI/WS/get/SEP?startDate=2024-05-09&endDate=2024-05-14)
-
-**API keys.** No API key, signup, account, environment variable or paid service is needed. On entering Explore, the browser calls the local `/api/space-weather` route. Its fixed public NASA CCMC endpoint accepts dates without a key. It has a 4.5-second timeout and a 15-minute cache for successful queries. Responses retain the check time and original event time. Each candidate must have a valid in-window UTC timestamp, matching SEP identifier, observing instrument and official NASA event URL. Model-only alerts are excluded. If the local server has no internet access, all four rooms and their archived science remain playable. External source links need internet access.
-
-Archive fixtures and photos were checked November 14, 2026. Credits beside each photograph link to the official source. [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) · [JPL image use policy](https://www.jpl.nasa.gov/jpl-image-use-policy/)
+No public feed gives a live radiation reading from the Moon's surface, so the game does not show one. If the live satellite feed fails or is more than three hours old, the game says it is unavailable. Sparks, hearts, suit air, food, water and sunlight amounts are game units, not NASA engineering values. Real Sun particles are invisible; the outpost draws them so a storm can be seen, and says so. Sources were read on November 15, 2026.
 
 ## Deploy to Vercel
 
 The project is a standard Next.js app and needs no environment variables, API keys or database.
 
 1. Push the repository to GitHub.
-2. In Vercel choose **Add New → Project**, import the repository and keep the detected **Next.js** preset. The build command is `next build`; Node 22 comes from `engines` in `package.json`.
+2. In Vercel choose **Add New → Project**, import the repository and keep the detected **Next.js** preset.
 3. Deploy. Or from a terminal: `npx vercel` for a preview, then `npx vercel --prod`.
 
-What is already set up for production:
-
-- `/api/space-weather` runs as a serverless function. Its response carries `s-maxage=300`, so Vercel's edge serves one reading for five minutes and NASA and NOAA are called at most a few times per hour. Upstream calls time out after 4.5 seconds and fall back to the bundled archive.
+- `/api/space-weather` runs as a serverless function. Its response carries `s-maxage=300`, so Vercel's edge serves one reading for five minutes. Upstream calls time out after 4.5 seconds and fall back to the bundled archive.
 - `next.config.ts` sends `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and a `Permissions-Policy` that allows only gamepad, serial and fullscreen. There is no Content-Security-Policy header yet.
-- `app/layout.tsx` sets the title, description, theme color and link-preview image, using Vercel's production host name automatically. `app/manifest.ts` lets the game be installed to a home screen. `app/error.tsx` and `app/not-found.tsx` give friendly recovery pages.
-- The ESP32 USB connection (Web Serial) only works on HTTPS or localhost. Vercel serves HTTPS, so it works on the deployed site in Chrome and Edge.
+- The ESP32 USB connection (Web Serial) needs HTTPS or localhost, and Chrome or Edge. Vercel serves HTTPS.
 - Stars and saves live in each visitor's browser. Nothing about a player is sent to the server.
 
 ## Project map
 
-- `game/input.ts` turns the keyboard, the browser Gamepad API and ESP32 serial lines into the same eight buttons and routes them to the open screen or dialog. `game/profile.ts` holds stars, badges, ranks and the star questions. `game/outpost.ts` holds the Outpost Commander rules. All three are pure TypeScript with unit tests. `game/sfx.ts` synthesizes the optional sounds.
-- `components/Outpost.tsx` and `app/outpost/page.tsx` are the final mission. `game/base.ts` is its Phaser scene: the fan, plants, shelter dome, dish, power lines and astronaut all redraw from the player's current plan. The spark controls are HTML below the scene.
-- Room animations in `game/world.ts` (floating labels for what changed, boot dust outdoors on the Moon and Mars, twinkling lunar stars, drifting dust on the Mars rock hunt, launch and landing shake, confetti) are drawn from state and switch off with Reduced motion.
-
-- `app/missions/[id]/page.tsx` supplies the four direct Next.js routes. `components/AdventureRoom.tsx` connects React controls, preferences, progress and the browser-only Phaser scene.
-- `game/adventure.ts` contains pure mission rules. `game/journal.ts` restores a validated versioned action history per room. Time passing or rendering a frame never advances a simulation.
-- `game/world.ts` and `game/world-art.ts` implement walking, pointer hit tests, station use, sprite poses and action-specific effects. Interactive objects and their consequences are rendered by Phaser. The engine and listeners are disposed on navigation.
-- `components/Science.tsx`, `data/field-notes.ts`, `data/science.json` and `data/sep-archive.json` hold the in-room photo cards and source records. `app/api/space-weather/route.ts` reads NASA’s catalog server-side.
-- `public/art/world/` contains original game illustrations. The backdrops came from a four-room art sheet. The OpenAI image generation tool produced a twelve-object equipment sheet and six walking poses of the same small astronaut. Each image was cropped and bundled locally. The custom plant, cargo indicators, scan, plume and particle effects render in Phaser. The four mission islands, NOVA and star chart come from the original JuniorAstronaut build.
-- Fonts are the locally bundled Press Start 2P and Space Grotesk (SIL Open Font License). Interface icons are Lucide (ISC). NASA photographic assets retain the source credits above.
+- `game/adventure.ts` holds the pure rules of the four missions, the expert goals and which move unlocks which fact card. `game/journal.ts` restores a validated action history per mission; time passing never changes a mission.
+- `game/world.ts` and `game/world-art.ts` are the Phaser scene for the missions: walking, jumping under gravity, station use, gauges and effects. `game/base.ts` is the Phaser scene of the outpost. `game/chart.ts` is the map.
+- `game/outpost.ts` holds the outpost rules. `game/profile.ts` holds stars, badges, ranks, collected cards and the star questions.
+- `game/input.ts` turns the keyboard, the Gamepad API and ESP32 serial lines into the same eight buttons. `game/device.ts` formats what the game sends back to the controller's display and lights.
+- `game/space-weather.ts` and `app/api/space-weather/route.ts` validate the DONKI catalog and the live GOES reading server-side.
+- `components/` holds the map (`FlightDeck`), mission screen (`AdventureRoom`), outpost screen (`Outpost`), fact album and pop-up (`Science`), weather station (`SpaceWeather`) and shared controls.
+- `public/art/world/` holds the game illustrations. The Moon greenhouse, rover trek, rock and garden-bed art were recoloured from earlier artwork to lunar grey. `public/art/nasa/` holds the NASA archive photographs used on the cards.
+- `firmware/esp32-controller/` is an example Arduino sketch for buttons, an I2C LCD and two LEDs.
+- Fonts are the bundled Press Start 2P and Space Grotesk (SIL Open Font License). Interface icons are Lucide (ISC).
 
 ## Verification
 
-Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` and `npm run build`. Browser tests use port 3174 and local Chrome on macOS. If a dev server for this folder is already running, point the tests at it instead: `BASE_URL=http://127.0.0.1:3000 npm run test:e2e`. You can select another Chromium executable with `CHROME_PATH` or install Playwright Chromium. See `docs/verification.md` for the verified paths and limits.
-
+Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` and `npm run build`. Browser tests use port 3174 and local Chrome on macOS. If a dev server for this folder is already running, point the tests at it: `BASE_URL=http://127.0.0.1:3000 npm run test:e2e`. See [docs/verification.md](docs/verification.md) for what was and was not checked.

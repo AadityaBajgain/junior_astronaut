@@ -48,3 +48,14 @@ it("reads a gamepad stick, d-pad and face buttons", () => {
   ]);
   expect(readPad(pad([], [0.2, -0.3])).size).toBe(0);
 });
+
+import { lcdLine, lcdText, ledLine } from "../game/device";
+it("formats display and light messages for the controller", () => {
+  expect(lcdLine("Pump fuel", "Fuel 2/3")).toBe("LCD|Pump fuel|Fuel 2/3");
+  expect(lcdLine("Moon greenhouse")).toBe("LCD|Moon greenhouse|");
+  // 16 characters, plain ASCII, and no separator inside the text.
+  expect(lcdText("A very long level name indeed")).toBe("A very long leve");
+  expect(lcdText("It’s −173°C | café")).toBe("It's 173C / cafe");
+  expect(ledLine("g", true)).toBe("LED|G|1");
+  expect(ledLine("r", false)).toBe("LED|R|0");
+});

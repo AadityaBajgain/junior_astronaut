@@ -1,3 +1,4 @@
+// Four chapters, all on the way to and on the Moon.
 export const missions = [
   {
     id: "go",
@@ -8,19 +9,19 @@ export const missions = [
   {
     id: "land",
     name: "Land",
-    place: "Moon outpost",
+    place: "Moon landing site",
     color: "#8dd8ff",
   },
   {
     id: "live",
     name: "Live",
-    place: "Mars greenhouse",
+    place: "Moon greenhouse",
     color: "#86e8ab",
   },
   {
     id: "explore",
     name: "Explore",
-    place: "Mars rock hunt",
+    place: "Moon rover trek",
     color: "#c5abff",
   },
 ] as const;

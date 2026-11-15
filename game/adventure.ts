@@ -1,11 +1,13 @@
 import type { MissionId } from "./missions";
 
+// Pure rules for the four Moon missions. Only an arrival at an action station
+// changes anything; time, walking and jumping never spend supplies.
 export type Spot = "left" | "middle" | "right";
 export type Cargo = "none" | "battery" | "camera";
 type Common = { message: string; steps: number; done: boolean };
 export type Run = Common &
   (
-    | { id: "go"; air: boolean; kit: Cargo }
+    | { id: "go"; air: boolean; suit: boolean; kit: Cargo; fuel: number }
     | {
         id: "land";
         phase: "arrival" | "day" | "night";
@@ -15,6 +17,7 @@ export type Run = Common &
         maps: number;
         fan: boolean;
         stalled: boolean;
+        nights: number;
       }
     | {
         id: "live";
@@ -25,6 +28,7 @@ export type Run = Common &
         route: "lamp" | "battery";
         battery: number;
         food: number;
+        water: number;
         rested: boolean;
       }
     | {
@@ -33,20 +37,53 @@ export type Run = Common &
         power: number;
         samples: number;
         camera: boolean;
+        air: number;
+        rescued: boolean;
       }
   );
+export const limits = {
+  fuel: 3,
+  nights: 2,
+  landBattery: 2,
+  liveBattery: 3,
+  water: 4,
+  food: 2,
+  roverPower: 4,
+  suitAir: 6,
+  rocks: 3,
+};
 
 export const goals: Record<MissionId, string> = {
-  go: "Pack for the Moon",
-  land: "Keep the air fan on",
-  live: "Grow a space salad",
-  explore: "Bring a space rock home",
+  go: "Pack, fuel up and launch",
+  land: "Keep the air fan on for 2 nights",
+  live: "Grow 2 space salads",
+  explore: "Bring Moon rocks home",
 };
+/** The harder second star. It rewards planning, never speed. */
+export const expertGoals: Record<MissionId, string> = {
+  go: "Launch with both cargo spaces full",
+  land: "Scan 2 craters and never let the fan stop",
+  live: "Grow both salads and never let the fan rest",
+  explore: "Bring home 3 rocks without a rescue",
+};
+export function expert(s: Run): boolean {
+  if (!s.done) return false;
+  switch (s.id) {
+    case "go":
+      return s.air && s.kit !== "none";
+    case "land":
+      return s.maps >= 2 && !s.stalled;
+    case "live":
+      return !s.rested;
+    case "explore":
+      return s.samples >= limits.rocks && !s.rescued;
+  }
+}
 export const questions: Record<MissionId, string> = {
   go: "What did you leave room for?",
   land: "What kept the fan on in the dark?",
-  live: "What helped your leaf grow?",
-  explore: "Why did you turn back?",
+  live: "What helped your leaves grow?",
+  explore: "What made you turn back?",
 };
 export function begin(id: MissionId, cargo: Cargo = "none"): Run {
   const base = { done: false, steps: 0 };
@@ -56,8 +93,10 @@ export function begin(id: MissionId, cargo: Cargo = "none"): Run {
         ...base,
         id,
         air: false,
+        suit: false,
         kit: "none",
-        message: "Our ship has two spaces. Pack air so we can breathe!",
+        fuel: 0,
+        message: "Our ship has two cargo spaces. Pack air so we can breathe!",
       };
     case "land":
       return {
@@ -70,6 +109,7 @@ export function begin(id: MissionId, cargo: Cargo = "none"): Run {
         fan: false,
         stalled: false,
         maps: 0,
+        nights: 0,
         message:
           cargo === "battery"
             ? "Your spare battery made it! Pick a place for our Moon home."
@@ -86,21 +126,25 @@ export function begin(id: MissionId, cargo: Cargo = "none"): Run {
         route: "lamp",
         battery: 1,
         food: 0,
+        water: limits.water,
         rested: false,
-        message: "Let’s grow lunch! Walk to the garden bed to plant a seed.",
+        message:
+          "The crew needs two salads. Walk to the garden bed and plant a seed.",
       };
     case "explore":
       return {
         ...base,
         id,
         away: false,
-        power: 4,
+        power: limits.roverPower,
         samples: 0,
         camera: cargo === "camera",
+        air: limits.suitAir,
+        rescued: false,
         message:
           cargo === "camera"
-            ? "Your camera is here! Ride out to take a rock photo."
-            : "Hop in the rover. Let’s find a rock and bring it home!",
+            ? "Your camera is here! Hop in the Moon rover to photograph rocks."
+            : "Hop in the Moon rover. Watch your suit air and rover battery!",
       };
   }
 }
@@ -122,8 +166,12 @@ export function stations(s: Run): Station[] {
         station(
           "left",
           "AIR",
-          s.air ? "Check air" : "Pack air",
-          s.air ? "Already on board" : "Fills one space",
+          !s.air ? "Pack air" : !s.suit ? "Check suit" : "Suit ready",
+          !s.air
+            ? "Fills one cargo space"
+            : !s.suit
+              ? "Test it before launch"
+              : "Air and suit are set",
         ),
         station(
           "middle",
@@ -135,7 +183,14 @@ export function stations(s: Run): Station[] {
               : "Pack battery",
           s.kit === "battery" ? "Take rock photos" : "Save Moon power",
         ),
-        station("right", "SHIP", "Blast off", "Bring your air tank"),
+        station(
+          "right",
+          "SHIP",
+          s.fuel < limits.fuel ? "Pump fuel" : "Blast off",
+          s.fuel < limits.fuel
+            ? "Tank " + s.fuel + " of " + limits.fuel
+            : "Needs air and a checked suit",
+        ),
       ];
     case "land":
       if (s.phase === "arrival")
@@ -169,12 +224,17 @@ export function stations(s: Run): Station[] {
       ];
     case "live":
       return [
-        station("left", "WATER", "Give water", "Wet the soil"),
+        station(
+          "left",
+          "WATER",
+          "Give water",
+          s.water + " of " + limits.water + " drinks left",
+        ),
         station(
           "middle",
           "SWITCH",
           s.route === "lamp" ? "Charge instead" : "Light the lamp",
-          s.route === "lamp" ? "Save spare sun" : "Help the seed grow",
+          s.route === "lamp" ? "Sun fills the battery" : "Help the seed grow",
         ),
         station(
           "right",
@@ -195,18 +255,23 @@ export function stations(s: Run): Station[] {
       ];
     case "explore":
       return [
-        station("left", "SHELTER", "Go to shelter", "Keep one spark to return"),
+        station(
+          "left",
+          "SHELTER",
+          "Go to shelter",
+          "The ride home uses one spark",
+        ),
         station(
           "middle",
           "ROVER",
-          s.away ? "Check rover" : "Drive out",
-          s.away ? "See the battery" : "Use one spark",
+          s.away ? "Charge rover" : "Drive out",
+          s.away ? "+2 sparks, uses 1 suit air" : "Uses one spark",
         ),
         station(
           "right",
           "ROCKS",
           s.camera ? "Rock + photo" : "Pick up a rock",
-          "Use one spark",
+          "Uses 1 spark and 1 suit air",
         ),
       ];
   }
@@ -218,42 +283,61 @@ const advance = <T extends Run>(
   message: string,
 ): T => ({ ...s, ...change, steps: s.steps + 1, message });
 
-// Only an arrival at an action station advances the simulation.
 export function act(s: Run, spot: Spot): Run {
   if (s.done) return s;
   switch (s.id) {
     case "go": {
-      if (spot === "left")
-        return s.air
-          ? hint(s, "The air tank is on board. Pick your gear or blast off!")
-          : advance(
-              s,
-              { air: true },
-              "Air is on board! Take a battery or swap it for a camera.",
-            );
+      if (spot === "left") {
+        if (!s.air)
+          return advance(
+            s,
+            { air: true },
+            "Air is on board! Now check your space suit here.",
+          );
+        if (!s.suit)
+          return advance(
+            s,
+            { suit: true },
+            "Suit check passed! No leaks. Pick your gear and fuel the ship.",
+          );
+        return hint(s, "Air and suit are ready. Fuel the ship to launch!");
+      }
       if (spot === "middle") {
         const kit = s.kit === "battery" ? "camera" : "battery";
         return advance(
           s,
           { kit },
           kit === "battery"
-            ? "Battery packed! Take it to the Moon, or swap it for a camera."
-            : "Camera packed! We can take rock photos on Mars.",
+            ? "Battery packed! It will help on the Moon. Or swap it for a camera."
+            : "Camera packed! We can take rock photos on the Moon.",
         );
       }
-      return s.air
-        ? advance(
-            s,
-            { done: true },
-            s.kit === "none"
-              ? "Liftoff! You brought air and left one space empty."
-              : s.kit === "battery"
-                ? "Liftoff! Your spare battery is coming to the Moon."
-                : "Liftoff! Your camera is coming on the rock hunt.",
-          )
-        : hint(s, "Wait! We need air to breathe. Bring the blue tank.");
+      if (s.fuel < limits.fuel) {
+        const fuel = s.fuel + 1;
+        return advance(
+          s,
+          { fuel },
+          fuel === limits.fuel
+            ? "The tank is full! The Moon is a long trip away."
+            : "Glug! Tank " + fuel + " of " + limits.fuel + ". Keep pumping.",
+        );
+      }
+      if (!s.air)
+        return hint(s, "Wait! We need air to breathe. Bring the tank.");
+      if (!s.suit)
+        return hint(s, "Wait! Check your space suit at the air station first.");
+      return advance(
+        s,
+        { done: true },
+        s.kit === "none"
+          ? "Liftoff! You brought air and left one space empty."
+          : s.kit === "battery"
+            ? "Liftoff! Your spare battery is coming to the Moon."
+            : "Liftoff! Your camera is coming on the rock hunt.",
+      );
     }
     case "land": {
+      const refill = s.site === "plain" ? 1 : 2;
       if (s.phase === "arrival") {
         if (spot === "middle")
           return hint(s, "Pick the flat pad or the sunny rim.");
@@ -264,7 +348,7 @@ export function act(s: Run, spot: Spot): Run {
             phase: "day",
             site: flat ? "plain" : "rim",
             sun: flat ? 1 : 2,
-            battery: Math.min(2, s.battery + Number(flat)),
+            battery: Math.min(limits.landBattery, s.battery + Number(flat)),
             fan: true,
           },
           flat
@@ -275,16 +359,23 @@ export function act(s: Run, spot: Spot): Run {
       if (s.phase === "night") {
         if (spot !== "middle")
           return hint(s, "Visit the cabin to see the morning.");
-        if (s.fan)
+        if (!s.fan)
           return advance(
             s,
-            { done: true },
-            "You saved power. The air fan spun all night!",
+            { phase: "day", sun: refill, fan: true },
+            "Good morning! Save a sun spark in the battery this time.",
+          );
+        const nights = s.nights + 1;
+        if (nights >= limits.nights)
+          return advance(
+            s,
+            { done: true, nights },
+            "Two nights done! Your saved power kept the air fan spinning.",
           );
         return advance(
           s,
-          { phase: "day", sun: s.site === "plain" ? 1 : 2, fan: true },
-          "Good morning! Save one sun spark in the battery this time.",
+          { phase: "day", sun: refill, nights },
+          "Morning! One night down, one to go. Plan your sparks again.",
         );
       }
       if (spot === "middle") {
@@ -299,7 +390,7 @@ export function act(s: Run, spot: Spot): Run {
             stalled: s.stalled || !fan,
           },
           fan
-            ? "It’s dark! Your battery is turning the air fan. See it spin?"
+            ? "It’s dark and very cold! Your battery turns the air fan."
             : "The fan is still. Our air packs help us wait for morning.",
         );
       }
@@ -309,11 +400,8 @@ export function act(s: Run, spot: Spot): Run {
           "All the spare sunshine is used. Visit the cabin to start night.",
         );
       if (spot === "left") {
-        if (s.battery >= 2)
-          return hint(
-            s,
-            "The battery is full. The dish can use the spare sunshine.",
-          );
+        if (s.battery >= limits.landBattery)
+          return hint(s, "The battery is full. The dish can use the sunshine.");
         return advance(
           s,
           { battery: s.battery + 1, sun: s.sun - 1 },
@@ -323,16 +411,19 @@ export function act(s: Run, spot: Spot): Run {
       return advance(
         s,
         { maps: s.maps + 1, sun: s.sun - 1 },
-        "The dish found a crater! That spark went to the dish.",
+        s.maps
+          ? "Another dark crater mapped! Ice may hide in the shadows."
+          : "The dish mapped a dark crater! That spark went to science.",
       );
     }
     case "live": {
       if (spot === "left") {
         if (!s.planted) return hint(s, "Put a seed in the garden first.");
         if (s.wet) return hint(s, "The soil is wet. Try the next shift.");
+        if (!s.water) return hint(s, "The water tank is empty.");
         return advance(
           s,
-          { wet: true },
+          { wet: true, water: s.water - 1 },
           "Splash! The soil is wet. A seed needs light and time, too.",
         );
       }
@@ -343,22 +434,31 @@ export function act(s: Run, spot: Spot): Run {
           { route },
           route === "lamp"
             ? "Lamp connected. Spare power will help wet seeds grow."
-            : "Battery connected. The lamp will wait this shift.",
+            : "Battery connected. Sunny shifts will charge it by two.",
         );
       }
       if (!s.planted)
         return advance(
           s,
           { planted: true },
-          "A seed is tucked in! Give it a drink.",
+          "A seed is tucked into Moon soil! Give it a drink.",
         );
-      if (s.growth === 2)
+      if (s.growth === 2) {
+        const food = s.food + 1;
+        if (food >= limits.food)
+          return advance(
+            s,
+            { done: true, food },
+            "Crunch! Two salads. Water, light and time fed your crew.",
+          );
         return advance(
           s,
-          { done: true, food: 1 },
-          "Crunch! Water, light and time grew lunch for your crew.",
+          { food, planted: false, wet: false, growth: 0 },
+          "One salad picked! The crew needs one more. Plant again.",
         );
-      // Two daytime sparks, zero at night. Air takes the first spark.
+      }
+      // Sunny shift: the Sun runs the fan and gives one spare spark.
+      // Dark shift: the fan takes one battery spark first.
       let battery = s.battery;
       let available: number;
       if (s.sunny) available = 1;
@@ -368,20 +468,22 @@ export function act(s: Run, spot: Spot): Run {
       }
       const lit = s.route === "lamp" && available > 0;
       if (lit && !s.sunny) battery--;
-      if (s.route === "battery" && s.sunny) battery = Math.min(2, battery + 1);
+      if (s.route === "battery" && s.sunny)
+        battery = Math.min(limits.liveBattery, battery + 2);
       const grows = s.wet && lit;
       const growth = s.growth + Number(grows);
+      const rest = !s.sunny && !s.battery;
       let message = "The seed waits. Give it water and turn the lamp on.";
       if (grows)
         message =
           growth === 1
             ? "A sprout! It drank the water. Give it another drink."
             : "Big green leaves! Pick your space salad.";
-      else if (!s.sunny && !s.battery)
+      else if (rest)
         message =
-          "No sun or battery. The fan and lamp rested. Our air packs helped. The Sun is back!";
+          "No sun and no battery. The fan rested. Our air packs helped. The Sun is back!";
       else if (s.route === "battery" && s.sunny)
-        message = "Power went to the battery. The lamp and plant waited.";
+        message = "Sunlight charged the battery. The lamp and plant waited.";
       else if (!lit)
         message =
           "The plant waited. The fan got power first. Try a sunny turn.";
@@ -392,45 +494,120 @@ export function act(s: Run, spot: Spot): Run {
           wet: s.wet && !grows,
           sunny: !s.sunny,
           battery,
-          rested: s.rested || (!s.sunny && !s.battery),
+          rested: s.rested || rest,
         },
         message,
       );
     }
     case "explore": {
-      if (spot === "middle")
-        return s.away
-          ? hint(s, "Save the last spark for the ride home.")
-          : advance(
-              s,
-              { away: true, power: 3 },
-              "Off we go! Pick a rock to bring back.",
-            );
-      if (!s.away) return hint(s, "Hop in the rover first.");
+      if (spot === "middle" && !s.away)
+        return advance(
+          s,
+          { away: true, power: s.power - 1 },
+          "Off we go! Each job outside uses suit air. Pick up a rock.",
+        );
+      if (!s.away) return hint(s, "Hop in the Moon rover first.");
       if (spot === "left") {
         if (!s.samples)
           return hint(s, "Find one rock so we have a sample to bring home.");
         return advance(
           s,
           { done: true, away: false, power: s.power - 1 },
-          s.samples === 1
-            ? "Home with one rock! You took shelter early in our practice storm."
-            : "Two rocks came home! You spent one more turn outside and used your last spark.",
+          s.samples >= limits.rocks
+            ? "Three rocks home! You planned your power and air like a pro."
+            : "Home safe with " +
+                s.samples +
+                (s.samples === 1 ? " rock!" : " rocks!") +
+                " You saved air for the trip back.",
         );
       }
-      if (s.power <= 1)
-        return hint(
+      let next: Run;
+      if (spot === "middle") {
+        if (s.power >= limits.roverPower)
+          return hint(s, "The rover battery is full. Go find a rock!");
+        next = advance(
           s,
-          "That last spark is for the ride home. Head to shelter!",
+          {
+            power: Math.min(limits.roverPower, s.power + 2),
+            air: s.air - 1,
+          },
+          "The rover’s panels soaked up sunlight. That took some suit air.",
         );
-      const samples = s.samples + 1;
-      return advance(
-        s,
-        { samples, power: s.power - 1 },
-        samples === 1
-          ? "Rock found! Practice storm ahead. Take shelter or stay for one more rock."
-          : "Two rocks! Just enough power to drive home. Head to shelter.",
-      );
+      } else {
+        if (s.samples >= limits.rocks)
+          return hint(s, "The sample bag is full. Head to the shelter!");
+        if (s.power <= 1)
+          return hint(
+            s,
+            "That last spark is for the ride home. Charge the rover or head back.",
+          );
+        const samples = s.samples + 1;
+        next = advance(
+          s,
+          { samples, power: s.power - 1, air: s.air - 1 },
+          samples === limits.rocks
+            ? "Three rocks! The bag is full. Drive to the shelter."
+            : "Rock " + samples + " is in the bag! Check your air and battery.",
+        );
+      }
+      if (next.id !== "explore" || next.air > 0) return next;
+      // Out of suit air: a safe automatic ride home, never an injury.
+      return next.samples
+        ? {
+            ...next,
+            done: true,
+            away: false,
+            rescued: true,
+            samples: 1,
+            message:
+              "Suit air ran low, so NOVA drove you home fast. One rock made it back.",
+          }
+        : {
+            ...next,
+            away: false,
+            rescued: true,
+            air: limits.suitAir,
+            power: limits.roverPower,
+            message:
+              "Suit air ran low, so NOVA drove you home. Fresh air is loaded. Try again!",
+          };
+    }
+  }
+}
+
+/** The fact card a move unlocks, if any. Cards appear by themselves during play. */
+export function milestone(before: Run, after: Run): string | null {
+  if (after.steps === before.steps) return null;
+  switch (after.id) {
+    case "go": {
+      const b = before as typeof after;
+      if (after.done) return "go-launch";
+      if (after.fuel === limits.fuel && b.fuel < limits.fuel) return "go-fuel";
+      if (after.air && !b.air) return "go-air";
+      return null;
+    }
+    case "land": {
+      const b = before as typeof after;
+      if (b.phase === "arrival") return "land-touchdown";
+      if (after.maps === 1 && b.maps === 0) return "land-scan";
+      if (after.phase === "night" && after.fan && after.nights === 0)
+        return "land-night";
+      return null;
+    }
+    case "live": {
+      const b = before as typeof after;
+      if (after.planted && !b.planted && after.food === 0) return "live-plant";
+      if (after.growth === 1 && b.growth === 0 && after.food === 0)
+        return "live-sprout";
+      if (after.food === 1 && b.food === 0) return "live-harvest";
+      return null;
+    }
+    case "explore": {
+      const b = before as typeof after;
+      if (after.away && !b.away) return "explore-drive";
+      if (after.samples === 1 && b.samples === 0) return "explore-rock";
+      if (after.done) return "explore-home";
+      return null;
     }
   }
 }
@@ -448,34 +625,38 @@ export function meters(s: Run): [string, string][] {
               ? "Battery"
               : "Camera",
         ],
+        ["Fuel", s.fuel + "/" + limits.fuel],
+        ["Suit", s.suit ? "OK" : "Not checked"],
       ];
     case "land":
       return [
         ["Sun", String(s.sun)],
-        ["Battery", s.battery + "/2"],
+        ["Battery", s.battery + "/" + limits.landBattery],
         ["Scans", String(s.maps)],
+        ["Nights", s.nights + "/" + limits.nights],
       ];
     case "live":
       return [
         ["Shift", s.sunny ? "Sun" : "Dark"],
-        ["Battery", s.battery + "/2"],
+        ["Battery", s.battery + "/" + limits.liveBattery],
         [
           "Bed",
-          s.food
-            ? "Picked"
-            : s.growth === 2
-              ? "Leafy"
-              : s.growth === 1
-                ? "Sprout"
-                : s.planted
-                  ? "Seed"
-                  : "Empty",
+          s.growth === 2
+            ? "Leafy"
+            : s.growth === 1
+              ? "Sprout"
+              : s.planted
+                ? "Seed"
+                : "Empty",
         ],
+        ["Water", s.water + "/" + limits.water],
+        ["Salads", s.food + "/" + limits.food],
       ];
     case "explore":
       return [
-        ["Battery", s.power + "/4"],
-        ["Rocks", s.samples + "/2"],
+        ["Battery", s.power + "/" + limits.roverPower],
+        ["Suit air", s.air + "/" + limits.suitAir],
+        ["Rocks", s.samples + "/" + limits.rocks],
         ...(s.camera
           ? [["Photos", String(s.samples)] as [string, string]]
           : []),

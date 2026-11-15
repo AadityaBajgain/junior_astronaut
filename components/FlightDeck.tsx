@@ -33,7 +33,8 @@ import {
   starNames,
   type Profile,
 } from "../game/profile";
-import { fieldNotes } from "../data/field-notes";
+import { cards } from "../data/cards";
+import { device } from "../game/device";
 import {
   Brand,
   Dialog,
@@ -109,25 +110,24 @@ function Trophies({ profile, close }: { profile: Profile; close: () => void }) {
         Back to the map
       </button>
       <details className="source-fold field-note">
-        <summary>For curious grown-ups: science log</summary>
+        <summary>
+          NASA fact cards: {profile.cards.length} of {cards.length} found
+        </summary>
         <p>
-          Every mission uses one real NASA record. Photos and reports are
-          archives. Sparks, hearts and stars are game units.
+          Cards pop up during the missions. Every photo is a NASA archive and
+          every fact links to its source.
         </p>
-        {missions.map((m) => (
-          <p key={m.id}>
+        {cards.map((card) => (
+          <p key={card.id}>
             <strong>
-              {m.name}: {fieldNotes[m.id].photoTitle}
+              {profile.cards.includes(card.id) ? "★ " : "☆ "}
+              {card.title}
             </strong>
             <br />
-            {fieldNotes[m.id].datePlace} · {fieldNotes[m.id].credit}
+            {card.caption} {card.credit}
             <br />
-            <a
-              href={fieldNotes[m.id].dataSource}
-              target="_blank"
-              rel="noreferrer"
-            >
-              NASA record <ExternalLink size={13} />
+            <a href={card.source} target="_blank" rel="noreferrer">
+              Source <ExternalLink size={13} />
             </a>
           </p>
         ))}
@@ -152,6 +152,12 @@ export default function FlightDeck() {
     () => false,
   );
   const deck = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    device.hold(null);
+    if (titleSeen)
+      device.screen("Mission map", rank.total + "/" + maxStars + " stars");
+    else device.screen("JuniorAstronaut", "Press A to start");
+  }, [titleSeen, rank.total]);
   const begin = () => {
     titleStore.dismiss();
     if (store.get().prefs.sound) chime();
@@ -368,7 +374,7 @@ export default function FlightDeck() {
             <b>Final mission · Outpost Commander</b>
             <small>
               Run a Moon base for 6 days of real Sun storms. Balance air, food,
-              power and the storm shelter.
+              water, power and the storm shelter.
             </small>
           </span>
           <StarRow stars={profile.stars.outpost} names={starNames.outpost} />

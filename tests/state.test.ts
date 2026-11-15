@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { decode, initial, reduce } from "../game/state";
-import records from "../data/science.json";
 describe("map saves", () => {
   it("recovers missing, corrupt and unknown-version saves", () => {
     for (const raw of [null, "{", "null", "[]", '{"version":2}'])
@@ -37,14 +36,4 @@ describe("map saves", () => {
     });
     expect(initial.selected).toBe("go");
   });
-});
-it("keeps the reviewed RAD average tied to its place, interval and unit", () => {
-  expect(records.measurement).toMatchObject({
-    kind: "Archived measurement",
-    value: 0.67,
-    unit: "mSv/day",
-    period: "August 2012 – June 2013",
-    place: "Gale Crater, Mars",
-  });
-  expect(records.image.id).toBe("PIA16238");
 });

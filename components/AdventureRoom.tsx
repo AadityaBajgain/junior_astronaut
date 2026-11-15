@@ -38,9 +38,11 @@ import {
   Wind,
 } from "lucide-react";
 import {
+  expertGoals,
   goals,
   questions,
   meters,
+  milestone,
   stations,
   type Spot,
 } from "../game/adventure";
@@ -52,7 +54,6 @@ import {
 } from "../game/journal";
 import { getMission, missions, type MissionId } from "../game/missions";
 import type { WorldHandle } from "../game/world";
-import { fieldNotes } from "../data/field-notes";
 import { type WeatherReport, historicalEvent } from "../game/space-weather";
 import {
   Brand,
@@ -61,12 +62,13 @@ import {
   Hints,
   Settings,
   StarRow,
-  chime,
   useGameInput,
   usePreferences,
   useProfile,
 } from "./Controls";
-import FieldNote from "./Science";
+import Album, { FactToast } from "./Science";
+import { cardById, cardsFor } from "../data/cards";
+import { device } from "../game/device";
 import { WordList } from "./SpaceWeather";
 import { isDirection } from "../game/input";
 import { play } from "../game/sfx";
@@ -75,6 +77,7 @@ import {
   profileStore,
   quizzes,
   runBadges,
+  runStars,
   starNames,
   type BadgeId,
 } from "../game/profile";
@@ -118,6 +121,19 @@ const meterIcons: Record<string, typeof Sun> = {
   Bed: Leaf,
   Rocks: Mountain,
   Photos: Camera,
+  Fuel: Droplet,
+  Suit: Check,
+  Nights: Moon,
+  Water: Droplet,
+  Salads: Leaf,
+  "Suit air": Wind,
+};
+// Names that fit the controller's 16-character display.
+const lcdNames: Record<MissionId, string> = {
+  go: "Earth launchpad",
+  land: "Moon landing",
+  live: "Moon greenhouse",
+  explore: "Moon rover trek",
 };
 type Panel = "photo" | "settings" | "pause" | "help" | "result" | null;
 
@@ -138,7 +154,8 @@ function Result({
   nextLabel: string;
   restart: () => void;
 }) {
-  const stars = useProfile().stars[id];
+  const { stars: allStars, cards: found } = useProfile();
+  const stars = allStars[id];
   const quiz = quizzes[id];
   const [wrong, setWrong] = useState<number[]>([]);
   const next = useRef<HTMLAnchorElement>(null);
@@ -173,9 +190,14 @@ function Result({
         {starNames.room.map((name, i) => (
           <li key={name} className={stars[i] ? "got" : ""}>
             {stars[i] ? "★" : "☆"} {name}
-            {!stars[i] && i === 1 && " · walk to NOVA next time"}
+            {i === 1 && ": " + expertGoals[id]}
           </li>
         ))}
+        <li>
+          NASA fact cards:{" "}
+          {cardsFor(id).filter((c) => found.includes(c.id)).length} of{" "}
+          {cardsFor(id).length}
+        </li>
       </ul>
       {fresh.map((badge) => (
         <p className="new-badge" key={badge}>
@@ -221,8 +243,7 @@ function Result({
 }
 
 export default function AdventureRoom({ id }: { id: MissionId }) {
-  const m = getMission(id),
-    note = fieldNotes[id];
+  const m = getMission(id);
   const { state, store: prefs, toggle } = usePreferences();
   const [store] = useState(() => roomStore(id));
   const run = useSyncExternalStore(store.subscribe, store.get, store.initial);
@@ -234,17 +255,38 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
   const paused = useRef(false);
   const profile = useProfile();
   const [fresh, setFresh] = useState<BadgeId[]>([]);
-  const openPhoto = useCallback(() => {
-    setPanel("photo");
-    profileStore.award({ stage: id, stars: [false, true, false] });
-  }, [id]);
+  const openPhoto = useCallback(() => setPanel("photo"), []);
+  // The fact card that just popped up, and the timer that puts it away.
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const showCard = useCallback(
+    (card: string) => {
+      profileStore.award({ stage: id, card });
+      setToast(card);
+      clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setToast(null), 11000);
+    },
+    [id],
+  );
+  const index = missions.findIndex((x) => x.id === id);
+  // Arriving at a level is announced on the controller's display.
+  useEffect(() => {
+    device.hold(null);
+    device.screen(lcdNames[id], "reached! Lvl " + (index + 1) + "/5");
+    return () => {
+      clearTimeout(toastTimer.current);
+      device.moving(false);
+    };
+  }, [id, index]);
   useEffect(() => {
     if (!run.done) return;
     const earned = profileStore.award({
       stage: id,
-      stars: [true, false, false],
+      stars: runStars(run),
       badges: runBadges(run),
     });
+    device.screen("Mission done!", m.name + " complete");
+    device.hold("g");
     const { reducedMotion, sound } = prefs.get().prefs;
     const timer = setTimeout(
       () => {
@@ -273,7 +315,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
         if (!world.current?.interact()) setPanel(run.done ? "result" : null);
         return true;
       case "x":
-        openPhoto();
+        world.current?.jump();
         return true;
       default:
         setPanel("pause");
@@ -299,11 +341,24 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
   }, [id]);
   const activate = useCallback(
     (spot: Spot) => {
+      const before = store.get();
+      const label = stations(before).find((x) => x.spot === spot)?.label ?? "";
       const run = store.act(spot);
-      if (prefs.get().prefs.sound) chime();
+      const worked = run.steps > before.steps;
+      // The display names the action and what changed; the lights say if it worked.
+      const was = Object.fromEntries(meters(before));
+      const change = meters(run).find(([name, value]) => was[name] !== value);
+      device.screen(
+        label,
+        worked ? (change ? change.join(" ") : "Done!") : "Not yet! Look up",
+      );
+      device.flash(worked ? "g" : "r");
+      const card = milestone(before, run);
+      if (card) showCard(card);
+      if (prefs.get().prefs.sound) play(worked ? "ok" : "nope");
       return run;
     },
-    [store, prefs],
+    [store, prefs, showCard],
   );
   useEffect(() => {
     let disposed = false;
@@ -313,7 +368,11 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
         world.current = startWorld(host.current, id, {
           state: store.get,
           activate,
-          photo: openPhoto,
+          jumped: () => {
+            if (!profileStore.get().cards.includes("moon-jump"))
+              showCard("moon-jump");
+          },
+          motion: (moving) => device.moving(moving),
           ready: () => {
             if (!disposed) setStatus("ready");
           },
@@ -334,7 +393,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
       world.current?.destroy();
       world.current = null;
     };
-  }, [id, store, prefs, activate, openPhoto]);
+  }, [id, store, prefs, activate, showCard]);
   useEffect(() => {
     paused.current = !!panel;
     world.current?.setMotion(state.prefs.reducedMotion, !!panel);
@@ -346,10 +405,12 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
     store.reset();
     world.current?.reset();
     setFresh([]);
+    setToast(null);
+    device.hold(null);
+    device.screen(lcdNames[id], "Try again!");
     setPanel(null);
   };
   const options = stations(run),
-    index = missions.findIndex((x) => x.id === id),
     next = missions[index + 1];
   const nextHref = next ? "/missions/" + next.id : "/outpost",
     nextLabel = next ? "Go to " + next.place : "Final mission: Outpost";
@@ -384,12 +445,21 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
             <p className="mission-chip">
               Mission {index + 1} of 4 · {m.name}
               <StarRow stars={profile.stars[id]} names={starNames.room} />
+              <span className="gravity-chip">
+                {id === "go"
+                  ? "Earth gravity 9.8 m/s²"
+                  : "Moon gravity 1.6 m/s² (one-sixth)"}
+              </span>
             </p>
             <h1>{m.place}</h1>
           </div>
           <button className="photo-button" onClick={openPhoto}>
             <Camera size={18} />
-            <span>NASA photo</span>
+            <span>
+              Fact cards{" "}
+              {cardsFor(id).filter((c) => profile.cards.includes(c.id)).length}/
+              {cardsFor(id).length}
+            </span>
           </button>
         </div>
         <div className="game-case">
@@ -432,6 +502,9 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
               </div>
             )}
           </div>
+          {toast && cardById(toast) && !panel && (
+            <FactToast card={cardById(toast)!} />
+          )}
           <div className="dialogue-bar">
             <div className="nova-portrait">
               <Image
@@ -504,7 +577,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           run.samples > 0 &&
           !run.done && (
             <button className="radio-link" onClick={openPhoto}>
-              <Radio size={16} /> Practice storm ·{" "}
+              <Radio size={16} /> Space weather ·{" "}
               {report?.kind === "catalog" ? "NASA report" : "NASA archive"} ·{" "}
               {(report?.event ?? historicalEvent).time.slice(0, 10)}{" "}
               <ChevronRight size={14} />
@@ -514,7 +587,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           items={[
             ["move", "Walk"],
             ["a", "Use"],
-            ["x", "NASA card"],
+            ["x", "Jump"],
             ["b", "Menu"],
           ]}
         />
@@ -536,8 +609,11 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
         <Settings prefs={state.prefs} toggle={toggle} close={close} />
       )}
       {panel === "photo" && (
-        <Dialog title={note.title} close={close}>
-          <FieldNote id={id} report={report} />
+        <Dialog title={"Fact cards · " + m.name} close={close}>
+          <Album id={id} found={profile.cards} report={report} />
+          <button className="primary" onClick={close}>
+            Back to the mission
+          </button>
         </Dialog>
       )}
       {panel === "help" && (
@@ -556,8 +632,10 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
             </p>
           </div>
           <p>
-            Earn 3 stars: finish the mission, visit NOVA for a real NASA photo
-            card, and solve the star question.
+            Press X to jump. On the Moon you fall slowly and fly six times
+            higher. Earn 3 stars: finish the mission, reach its expert goal, and
+            solve the star question. Real NASA fact cards pop up as you finish
+            tasks.
           </p>
           <p>
             Esc or B opens the menu. Tapping the ground or the buttons works
@@ -576,6 +654,9 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
           </button>
           <button className="menu-choice" onClick={restart}>
             <RotateCcw size={17} /> Start this room again
+          </button>
+          <button className="menu-choice" onClick={openPhoto}>
+            <Camera size={17} /> Fact cards
           </button>
           <Link className="menu-choice" href="/">
             <Map size={17} /> Mission map

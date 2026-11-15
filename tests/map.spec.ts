@@ -29,7 +29,7 @@ async function point(page: Page, x: number, y: number) {
   return { x: box.x + box.width * x, y: box.y + box.height * y };
 }
 
-test("four map islands enter four real pages, each with its own credited NASA photograph", async ({
+test("four map islands enter four Moon missions; a finished task shows a credited NASA photo and fact", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -52,25 +52,29 @@ test("four map islands enter four real pages, each with its own credited NASA ph
     await expect(page).toHaveURL(new RegExp("/missions/" + m.id + "$"));
     await ready(page);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.place);
-    await page.getByRole("button", { name: "NASA photo" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText("Archive photo");
-    await expect(dialog.locator("figcaption")).toContainText("NASA");
+    // The first task of each mission pops up a real NASA photo and fact by itself.
+    await actAt(page, ["left", "right", "right", "middle"][i], 1);
+    const toast = page.locator(".fact-toast");
+    await expect(toast).toContainText("REAL NASA FACT");
+    await expect(toast).toContainText("NASA");
     await expect
       .poll(() =>
-        dialog
+        toast
           .locator("img")
           .evaluate((im: HTMLImageElement) => im.naturalWidth),
       )
       .toBeGreaterThan(200);
-    await dialog.getByText("For curious grown-ups").click();
+    const album = page.getByRole("button", { name: /Fact cards 1\// });
+    await album.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("Archive photo");
+    await expect(dialog).toContainText("to find this card");
     await expect(
-      dialog.getByRole("link", { name: "NASA science record" }),
+      dialog.getByRole("link", { name: "NASA source" }).first(),
     ).toHaveAttribute("href", /nasa\.gov\//);
+    await expect(page.locator("body")).not.toContainText(/\bMars\b/);
     await page.keyboard.press("Escape");
-    await expect(
-      page.getByRole("button", { name: "NASA photo" }),
-    ).toBeFocused();
+    await expect(album).toBeFocused();
     await page.getByRole("link", { name: "Mission map", exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
   }
@@ -95,18 +99,19 @@ test("scene click walks to the air tank; keys move the astronaut and Space uses 
   await page.mouse.click(p.x, p.y);
   await expect(field(page)).toHaveAttribute("data-turn", "1");
   await page.keyboard.press("Space");
+  await expect(field(page)).toHaveAttribute("data-turn", "2");
   await expect(page.locator(".dialogue-bar")).toContainText(
-    "The air tank is on board",
+    "Suit check passed",
   );
-  await actAt(page, "middle", 2);
-  await actAt(page, "right", 3);
+  await actAt(page, "middle", 3);
+  for (const turn of [4, 5, 6, 7]) await actAt(page, "right", turn);
   await expect(field(page)).toHaveAttribute("data-complete", "true");
   await page.reload();
   await ready(page);
   await expect(field(page)).toHaveAttribute("data-complete", "true");
   await page
     .getByRole("dialog")
-    .getByRole("link", { name: "Go to Moon outpost" })
+    .getByRole("link", { name: "Go to Moon landing site" })
     .click();
   await ready(page);
   await expect(page.locator(".dialogue-bar")).toContainText(
@@ -121,15 +126,49 @@ test("landing, greenhouse and rover loops finish, replay, and show different con
   for (const [id, moves, message] of [
     [
       "land",
-      ["right", "right", "left", "middle", "middle"],
-      "fan spun all night",
+      [
+        "right",
+        "right",
+        "left",
+        "middle",
+        "middle",
+        "left",
+        "right",
+        "middle",
+        "middle",
+      ],
+      "Two nights done",
     ],
     [
       "live",
-      ["right", "left", "right", "left", "right", "right", "right"],
-      "grew lunch",
+      [
+        "right",
+        "left",
+        "right",
+        "right",
+        "middle",
+        "right",
+        "left",
+        "middle",
+        "right",
+        "right",
+        "middle",
+        "right",
+        "right",
+        "left",
+        "middle",
+        "right",
+        "left",
+        "right",
+        "right",
+      ],
+      "Two salads",
     ],
-    ["explore", ["middle", "right", "right", "left"], "Two rocks came home"],
+    [
+      "explore",
+      ["middle", "right", "right", "middle", "right", "left"],
+      "Three rocks home",
+    ],
   ] as const) {
     await page.goto("/missions/" + id);
     await ready(page);
@@ -175,9 +214,8 @@ test("phone touch, larger words and archived field notes work with external traf
   await page.reload();
   await ready(page);
   await expect(page.locator(".room")).toHaveClass(/large/);
-  const pt = await point(page, 0.09, 0.84);
-  await page.touchscreen.tap(pt.x, pt.y);
-  await expect(page.getByRole("dialog")).toContainText("0.67 mSv/day");
+  await page.getByRole("button", { name: /Fact cards/ }).tap();
+  await expect(page.getByRole("dialog")).toContainText("1.37 mSv/day");
   await expect(page.getByRole("dialog")).toContainText("Archived NASA event");
   await page.getByRole("button", { name: "Close panel" }).tap();
   await page.getByRole("button", { name: "Pause game" }).tap();
@@ -260,7 +298,7 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(
-    page.getByRole("link", { name: "Land · Moon outpost" }),
+    page.getByRole("link", { name: "Land · Moon landing site" }),
   ).toBeFocused();
   await page.keyboard.press("a");
   await page.keyboard.press("Enter");
@@ -271,14 +309,40 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
     await page.waitForTimeout(ms);
     await page.keyboard.up(key);
   };
+  // The controller display announces the level, then each action and its result.
+  const lcd = page.locator(".lcd-screen");
+  await expect(lcd).toContainText("Earth launchpad");
+  await expect(lcd).toContainText("reached!");
   await page.keyboard.press("Space"); // the gear case is closest
   await expect(field(page)).toHaveAttribute("data-turn", "1");
+  await expect(lcd).toContainText("Pack battery");
+  await expect(lcd).toContainText("Cargo 1/2");
+  await expect(page.locator(".lcd-mirror")).toHaveAttribute(
+    "data-green",
+    "true",
+  );
   await hold("a", 1700);
   await page.keyboard.press("Space"); // air tank
   await expect(field(page)).toHaveAttribute("data-turn", "2");
+  await expect(page.locator(".fact-toast")).toContainText("3 astronauts");
+  await page.keyboard.press("Space"); // suit check at the same station
+  await expect(field(page)).toHaveAttribute("data-turn", "3");
+  await page.keyboard.press("Space"); // nothing left to do there: red light
+  await expect(lcd).toContainText("Not yet!");
+  await expect(page.locator(".lcd-mirror")).toHaveAttribute("data-red", "true");
   await hold("ArrowRight", 3300);
-  await page.keyboard.press("Space"); // rocket
+  for (const turn of [4, 5, 6]) {
+    await page.keyboard.press("Space"); // pump fuel
+    await expect(field(page)).toHaveAttribute("data-turn", String(turn));
+  }
+  await expect(lcd).toContainText("Fuel 3/3");
+  await page.keyboard.press("Space"); // blast off
   await expect(field(page)).toHaveAttribute("data-complete", "true");
+  await expect(lcd).toContainText("Mission done!");
+  await expect(page.locator(".lcd-mirror")).toHaveAttribute(
+    "data-green",
+    "true",
+  );
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Mission complete!");
   await expect(dialog).toContainText("New badge");
@@ -287,19 +351,18 @@ test("keyboard only: title, map, a whole mission, the star quiz and the next roo
   await page.keyboard.press("Enter"); // the next answer is right
   await expect(dialog).toContainText("Star question solved!");
   await expect(
-    dialog.getByRole("link", { name: "Go to Moon outpost" }),
+    dialog.getByRole("link", { name: "Go to Moon landing site" }),
   ).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/missions\/land$/);
   await ready(page);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toContainText("Game paused");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("ArrowDown");
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("button", { name: /Trophy room/ })).toContainText(
-    "2/15",
+    "3/15",
   );
 });
 
@@ -356,7 +419,7 @@ test("a gamepad starts the game, enters a room, walks and uses things", async ({
   await expect(page.getByRole("dialog")).toContainText("Game paused");
 });
 
-test("Outpost Commander: six sols of balancing power, air, food and shelter with keys only", async ({
+test("Outpost Commander: six days of balancing power, air, food, water and shelter with keys only", async ({
   page,
 }) => {
   // The live feed is stubbed, so the test never depends on today's space weather.
@@ -395,24 +458,26 @@ test("Outpost Commander: six sols of balancing power, air, food and shelter with
   await page.keyboard.press("x");
   await expect(dialog).toContainText("0.25 pfu");
   await expect(dialog).toContainText("1.37 mSv/day");
-  await expect(dialog).toContainText("0.67 mSv/day");
+  await expect(dialog).not.toContainText("Mars");
   await expect(dialog).toContainText("not live");
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  // air, greenhouse, shelter, lab for each sol
+  // air, greenhouse, water, shelter, lab for each day
   const plans = [
-    [1, 2, 0, 2],
-    [1, 1, 0, 1],
-    [1, 0, 1, 1],
-    [1, 0, 1, 0],
-    [1, 1, 0, 1],
-    [1, 0, 1, 1],
+    [1, 2, 0, 0, 2],
+    [1, 1, 1, 0, 1],
+    [1, 0, 0, 1, 1],
+    [1, 0, 0, 1, 0],
+    [1, 1, 1, 0, 0],
+    [1, 0, 0, 1, 2],
   ];
   await page.keyboard.press("f"); // full screen and back, from the keyboard
   await expect
     .poll(() => page.evaluate(() => !!document.fullscreenElement))
     .toBe(true);
   await page.keyboard.press("f");
+  const lcd = page.locator(".lcd-screen");
+  await expect(lcd).toContainText("Day 1 calm");
   for (const [sol, plan] of plans.entries()) {
     await expect(page.locator(".system-list")).toHaveAttribute(
       "data-sol",
@@ -435,4 +500,29 @@ test("Outpost Commander: six sols of balancing power, air, food and shelter with
       page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     )
     .toBe(true);
+});
+
+test("Moon gravity: X jumps and unlocks the gravity card; walking animates the controller display", async ({
+  page,
+}) => {
+  await page.goto("/missions/land");
+  await ready(page);
+  await expect(page.locator(".gravity-chip")).toContainText("one-sixth");
+  const lcd = page.locator(".lcd-screen");
+  await expect(lcd).toContainText("Moon landing");
+  await page.keyboard.down("ArrowRight");
+  await expect(lcd).toContainText("Moving");
+  await page.keyboard.up("ArrowRight");
+  await expect(lcd).toContainText("reached!");
+  const canvas = page.locator("canvas");
+  const standing = await canvas.screenshot();
+  await page.keyboard.press("x");
+  await expect(page.locator(".fact-toast")).toContainText("one-sixth");
+  // Still in the air well after an Earth jump would have landed (about 0.35 s).
+  await page.waitForTimeout(900);
+  expect((await canvas.screenshot()).equals(standing)).toBe(false);
+  await page.goto("/");
+  await expect(page.locator(".chart")).toHaveAttribute("data-status", "ready", {
+    timeout: 35_000,
+  });
 });
