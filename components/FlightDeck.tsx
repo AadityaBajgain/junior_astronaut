@@ -13,6 +13,7 @@ import {
 import {
   Award,
   ExternalLink,
+  Lock,
   MoveRight,
   Pause,
   Play,
@@ -146,6 +147,8 @@ export default function FlightDeck() {
   const profile = useProfile();
   const rank = rankOf(profile);
   const upNext = nextStage(profile);
+  // The final mission appears once Go, Land, Live and Explore are all finished.
+  const trained = missions.every((m) => profile.stars[m.id][0]);
   const titleSeen = useSyncExternalStore(
     titleStore.subscribe,
     titleStore.seen,
@@ -357,29 +360,36 @@ export default function FlightDeck() {
             </nav>
           </div>
         </section>
-        <Link
-          href="/outpost"
-          className="outpost-card"
-          data-next={upNext === "outpost" ? "" : undefined}
-          aria-label="Final mission · Outpost Commander"
-        >
-          <Image
-            src="/art/world/cabin.webp"
-            width={64}
-            height={64}
-            unoptimized
-            alt=""
-          />
-          <span>
-            <b>Final mission · Outpost Commander</b>
-            <small>
-              Run a Moon base for 6 days of real Sun storms. Balance air, food,
-              water, power and the storm shelter.
-            </small>
-          </span>
-          <StarRow stars={profile.stars.outpost} names={starNames.outpost} />
-          {upNext === "outpost" && <span className="next-flag">NEXT</span>}
-        </Link>
+        {trained ? (
+          <Link
+            href="/outpost"
+            className="outpost-card"
+            data-next={upNext === "outpost" ? "" : undefined}
+            aria-label="Final mission · Outpost Commander"
+          >
+            <Image
+              src="/art/world/cabin.webp"
+              width={64}
+              height={64}
+              unoptimized
+              alt=""
+            />
+            <span>
+              <b>Final mission · Outpost Commander</b>
+              <small>
+                Run a Moon base for 6 days of real Sun storms. Balance air,
+                food, water, power and the storm shelter.
+              </small>
+            </span>
+            <StarRow stars={profile.stars.outpost} names={starNames.outpost} />
+            {upNext === "outpost" && <span className="next-flag">NEXT</span>}
+          </Link>
+        ) : (
+          <p className="outpost-locked">
+            <Lock size={16} /> Finish all 4 missions to unlock the final
+            mission.
+          </p>
+        )}
         <button className="weather-chip" onClick={() => setStation(true)}>
           <WeatherStrip report={weather} />
         </button>

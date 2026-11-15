@@ -3,7 +3,9 @@ import type { MissionId } from "./missions";
 import { meters, stations, type Run, type Spot } from "./adventure";
 import { input } from "./input";
 import {
+  artVersion,
   cells,
+  drawEarth,
   drawPlant,
   equipment,
   setup,
@@ -116,10 +118,10 @@ export function startWorld(
     leaping = false;
 
     preload() {
-      this.load.image("landscape", "/art/world/" + id + ".webp");
+      this.load.image("landscape", "/art/world/" + id + ".webp" + artVersion);
       this.load.image("nova", "/art/nova.png");
       for (const name of [...equipment[id], ...poses])
-        this.load.image(name, "/art/world/" + name + ".webp");
+        this.load.image(name, "/art/world/" + name + ".webp" + artVersion);
       this.load.once("loaderror", () => {
         if (mounted) hooks.failed();
       });
@@ -573,6 +575,8 @@ export function startWorld(
         fx = this.fx;
       const labels = stations(s);
       const nearest = this.nearest();
+      // A round Earth in the black sky of the rover trek. The landing art has its own.
+      if (id === "explore") drawEarth(floor, width * 0.78, height * 0.13, 17);
       if (!reduced) {
         if (id === "land" || id === "explore") {
           // Stars twinkle in the black lunar sky. There is no air to carry dust.

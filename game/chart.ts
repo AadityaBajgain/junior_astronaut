@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { missions, type MissionId } from "./missions";
 import { anchors } from "./layout";
+import { artVersion } from "./world-art";
 import type { MapStore } from "./state";
 
 export function mountChart(
@@ -18,7 +19,9 @@ export function mountChart(
     clock = 0;
     preload() {
       this.load.image("stars", "/art/star-chart.webp");
-      missions.forEach((m) => this.load.image(m.id, "/art/" + m.id + ".webp"));
+      missions.forEach((m) =>
+        this.load.image(m.id, "/art/" + m.id + ".webp" + artVersion),
+      );
     }
     create() {
       this.sky = this.add.image(0, 0, "stars").setOrigin(0);

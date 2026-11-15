@@ -69,6 +69,7 @@ import {
 import Album, { FactToast } from "./Science";
 import { cardById, cardsFor } from "../data/cards";
 import { device } from "../game/device";
+import { artVersion } from "../game/world-art";
 import { WordList } from "./SpaceWeather";
 import { isDirection } from "../game/input";
 import { play } from "../game/sfx";
@@ -488,7 +489,10 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
             data-room={id}
             data-turn={run.steps}
             data-complete={run.done}
-            style={{ backgroundImage: "url(/art/world/" + id + ".webp)" }}
+            style={{
+              backgroundImage:
+                "url(/art/world/" + id + ".webp" + artVersion + ")",
+            }}
           >
             {status !== "ready" && (
               <div className="world-loading" role="status">

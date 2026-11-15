@@ -1381,6 +1381,98 @@ dialog .primary:focus-visible {
     display: none;
   }
 }
+.outpost-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+/* On anything bigger than a phone the map is the whole screen; everything else floats on it. */
+@media (min-width: 761px) and (min-height: 600px) {
+  .hub .chart-frame {
+    pointer-events: auto;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 0;
+  }
+  .hub .topbar {
+    position: relative;
+    z-index: 2;
+    border-bottom: 0;
+    background: linear-gradient(#070d1ae6, #070d1a00);
+  }
+  .hub .hub-main {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+    padding-bottom: 12px;
+  }
+  .hub .hub-main > *:not(.chart-frame) {
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+  }
+  .hub .hub-heading {
+    pointer-events: none;
+    text-shadow: 0 2px 8px #050913;
+  }
+  .hub .hub-heading h1 {
+    font-size: clamp(18px, 1.8vw, 26px);
+  }
+  /* Whatever follows the map sits at the bottom of the screen. */
+  .hub .chart-frame + * {
+    margin-top: auto;
+  }
+  .hub .outpost-card,
+  .hub .weather-chip,
+  .hub .outpost-locked {
+    width: min(860px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+    background-color: #101a2ce6;
+    backdrop-filter: blur(3px);
+  }
+  .hub .outpost-locked {
+    width: fit-content;
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+  .hub .map-astronaut {
+    z-index: 1;
+    position: fixed;
+    left: 26px;
+    bottom: 22px;
+    height: 104px;
+    animation: floaty 3s ease-in-out infinite;
+  }
+  /* Missions: edge to edge, with the title on one compact line. */
+  .room .wrap {
+    width: calc(100% - 28px);
+  }
+  .room .room-heading {
+    margin-bottom: 8px;
+  }
+  .room .room-heading > div {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .room .room-heading h1 {
+    font-size: clamp(15px, 1.5vw, 22px);
+    margin: 0;
+  }
+  .room .room-main {
+    padding: 8px 0 10px;
+  }
+}
 @container (max-width:679px) {
   .destination {
     left: var(--mx);

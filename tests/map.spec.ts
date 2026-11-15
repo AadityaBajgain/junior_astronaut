@@ -526,3 +526,39 @@ test("Moon gravity: X jumps and unlocks the gravity card; walking animates the c
     timeout: 35_000,
   });
 });
+
+test("the final mission stays hidden until all four missions are finished", async ({
+  page,
+}) => {
+  await openMap(page);
+  await expect(page.locator(".outpost-locked")).toContainText(
+    "Finish all 4 missions",
+  );
+  await expect(page.locator(".outpost-card")).toHaveCount(0);
+  // The map fills the whole window.
+  const box = (await page.locator("canvas").boundingBox())!;
+  const size = page.viewportSize()!;
+  expect(box.width).toBe(size.width);
+  expect(box.height).toBe(size.height);
+  await expect(page.locator(".map-astronaut")).toBeVisible();
+  await page.evaluate(() => {
+    const done = [true, false, false];
+    localStorage.setItem(
+      "JuniorAstronaut.profile.v1",
+      JSON.stringify({
+        version: 1,
+        stars: { go: done, land: done, live: done, explore: done },
+        badges: [],
+        cards: [],
+      }),
+    );
+  });
+  await page.reload();
+  await expect(page.locator(".chart")).toHaveAttribute("data-status", "ready", {
+    timeout: 35_000,
+  });
+  const card = page.getByRole("link", { name: /Final mission/ });
+  await expect(card).toBeVisible();
+  await card.click();
+  await expect(page).toHaveURL(/\/outpost$/);
+});

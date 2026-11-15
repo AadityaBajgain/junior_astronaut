@@ -1,7 +1,7 @@
 // The living picture of the Outpost Commander base. It only draws what the
 // React state says; it never changes the game.
 import Phaser from "phaser";
-import { cells, drawPlant, sparkle } from "./world-art";
+import { artVersion, cells, drawEarth, drawPlant, sparkle } from "./world-art";
 import type { Plan } from "./outpost";
 
 export type BaseView = {
@@ -48,9 +48,9 @@ export function startBase(host: HTMLElement, view: () => BaseView) {
       v: 0.5 + Math.random() * 0.6,
     }));
     preload() {
-      this.load.image("sky", "/art/world/land.webp");
+      this.load.image("sky", "/art/world/land.webp" + artVersion);
       for (const name of [...art, ...poses])
-        this.load.image(name, "/art/world/" + name + ".webp");
+        this.load.image(name, "/art/world/" + name + ".webp" + artVersion);
     }
     create() {
       this.sky = this.add.image(0, 0, "sky").setOrigin(0.5);
@@ -109,6 +109,8 @@ export function startBase(host: HTMLElement, view: () => BaseView) {
           width * 0.86,
           height * 0.62,
         );
+      // Earth hangs in the black sky, always in the same place.
+      drawEarth(g, width * 0.3, height * 0.17, 13);
       const at = (i: number) => this.props[i];
       const top = (i: number) => at(i).y - at(i).displayHeight;
       // Power flows from the solar panel to every machine that has sparks.

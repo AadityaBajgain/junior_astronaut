@@ -41,6 +41,7 @@ import type { BaseView } from "../game/base";
 import { profileStore, starNames, badges, type BadgeId } from "../game/profile";
 import { play } from "../game/sfx";
 import { device } from "../game/device";
+import { artVersion } from "../game/world-art";
 import { facts } from "../data/facts";
 import {
   GrownUps,
@@ -394,7 +395,7 @@ export default function Outpost() {
                 onPointerDown={() => setRow(i)}
               >
                 <Image
-                  src={"/art/world/" + sys.art + ".webp"}
+                  src={"/art/world/" + sys.art + ".webp" + artVersion}
                   width={56}
                   height={56}
                   unoptimized
