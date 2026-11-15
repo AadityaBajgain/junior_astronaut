@@ -10,7 +10,7 @@ const site = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? "https://" + process.env.VERCEL_PROJECT_PRODUCTION_URL
   : "http://127.0.0.1:3000";
 const description =
-  "Go, Land, Live, Explore: an astronaut training game for ages 7 to 12. Pack a rocket, power a Moon base, grow food on Mars and shelter from real Sun storms using NASA data.";
+  "Go, Land, Live, Explore: an astronaut training game for ages 7 to 12. Pack a rocket, power a Moon base, grow food in Moon soil and drive a lunar rover, with real NASA photos, facts and Sun storm data.";
 export const metadata: Metadata = {
   metadataBase: new URL(site),
   title: {

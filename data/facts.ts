@@ -19,15 +19,6 @@ export const facts: Fact[] = [
     link: "https://www.nasa.gov/missions/station/iss-research/nasa-achieves-water-recovery-milestone-on-international-space-station/",
   },
   {
-    id: "dust",
-    topic: "Power",
-    kid: "A giant dust storm on Mars blocked the Sun in 2018. The solar-powered rover Opportunity went quiet.",
-    detail:
-      "NASA: Opportunity stopped communicating after a severe Mars-wide dust storm blanketed its location in June 2018.",
-    agency: "NASA",
-    link: "https://science.nasa.gov/mission/mer-opportunity/",
-  },
-  {
     id: "exercise",
     topic: "Crew health",
     kid: "Station astronauts exercise about two hours every day to keep muscles and bones strong.",
@@ -46,13 +37,22 @@ export const facts: Fact[] = [
     link: "https://www.nasa.gov/missions/station/iss-research/counteracting-bone-and-muscle-loss-in-microgravity/",
   },
   {
-    id: "mars-dose",
+    id: "moon-dose",
     topic: "Radiation",
-    kid: "The Curiosity rover measured radiation on Mars: about 0.67 mSv each day. That is why crews plan shelters.",
+    kid: "A lander measured radiation on the Moon: about 1.37 mSv each day. That is why crews plan shelters.",
     detail:
-      "Curiosity’s RAD instrument averaged 0.67 millisieverts per day at Gale Crater, August 2012 to June 2013.",
-    agency: "NASA/JPL-Caltech",
-    link: "https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/",
+      "The LND instrument on the Chang’E-4 lander measured an average of 1,369 microsieverts per day in 2019 (Zhang et al., Science Advances, 2020). It is not a NASA instrument.",
+    agency: "Chang’E-4 LND",
+    link: "https://www.sci.news/space/radiation-dose-rates-lunar-surface-08893.html",
+  },
+  {
+    id: "moon-temps",
+    topic: "Power",
+    kid: "In full Sun the Moon reaches about 127°C. In the dark it falls to about −173°C. Night needs saved power.",
+    detail:
+      "NASA: the Moon reaches about 260°F (127°C) in full Sun and about −280°F (−173°C) in darkness.",
+    agency: "NASA",
+    link: "https://science.nasa.gov/moon/facts/",
   },
   {
     id: "storm-week",
@@ -85,15 +85,6 @@ export const surfaceDose = {
     exact: "1,369 microsieverts per day (Zhang et al., Science Advances, 2020)",
     link: "https://www.sci.news/space/radiation-dose-rates-lunar-surface-08893.html",
   },
-  mars: {
-    value: 0.67,
-    unit: "mSv/day",
-    where: "Mars, Gale Crater",
-    when: "August 2012 to June 2013",
-    by: "NASA Curiosity rover, RAD instrument",
-    exact: "Average dose equivalent rate, NASA release 13-366",
-    link: "https://www.nasa.gov/news-release/nasa-rover-results-include-first-age-measurement-on-mars-and-help-for-human-exploration/",
-  },
 } as const;
 
 // Plain-language words, shown where the words are used.
@@ -111,8 +102,12 @@ export const words: [string, string][] = [
     "A burst of speedy particles from the Sun. Scientists call it a solar particle event.",
   ],
   [
-    "Sol",
-    "One day on Mars. It is about 40 minutes longer than a day on Earth.",
+    "Gravity",
+    "The pull that holds you down. The Moon’s pull is one-sixth of Earth’s, so you feel light and bouncy.",
+  ],
+  [
+    "Regolith",
+    "The grey dust and broken rock that covers the Moon. It is the Moon’s soil.",
   ],
   [
     "Life support",

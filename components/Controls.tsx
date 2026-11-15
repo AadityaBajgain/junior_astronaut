@@ -25,6 +25,7 @@ import {
   type Handler,
 } from "../game/input";
 import { play } from "../game/sfx";
+import { blankDevice, device } from "../game/device";
 import { profileStore, type Stars } from "../game/profile";
 
 /** Routes keyboard, gamepad and ESP32 presses to this screen while it is mounted. */
@@ -51,6 +52,35 @@ const glyphs: Record<"keys" | "pad", Partial<Record<Btn | "move", string>>> = {
   keys: { move: "W A S D / ARROWS", a: "SPACE", b: "ESC", x: "X", start: "P" },
   pad: { move: "STICK", a: "A", b: "B", x: "X", start: "START" },
 };
+/** A live copy of the controller's 16x2 display and its two lights. */
+export function LcdMirror() {
+  const view = useSyncExternalStore(
+    device.subscribe,
+    device.view,
+    () => blankDevice,
+  );
+  return (
+    <span
+      className="lcd-mirror"
+      role="img"
+      aria-label={
+        "Controller display: " +
+        view.rows.join(" / ") +
+        (view.green ? ". Green light on" : "") +
+        (view.red ? ". Red light on" : "")
+      }
+      data-green={view.green}
+      data-red={view.red}
+    >
+      <span className={"lcd-led green" + (view.green ? " on" : "")} />
+      <span className="lcd-screen">
+        <span>{view.rows[0] || " "}</span>
+        <span>{view.rows[1] || " "}</span>
+      </span>
+      <span className={"lcd-led red" + (view.red ? " on" : "")} />
+    </span>
+  );
+}
 /** A strip of button hints that matches the device the player touched last. */
 export function Hints({ items }: { items: [Btn | "move", string][] }) {
   const { last } = useDevices();
@@ -62,6 +92,7 @@ export function Hints({ items }: { items: [Btn | "move", string][] }) {
           <kbd>{set[btn]}</kbd> {label}
         </span>
       ))}
+      <LcdMirror />
     </p>
   );
 }

@@ -48,3 +48,13 @@ These checks used installed Chrome and touch emulation. Physical-device testing,
 | Tests and build | ESLint, TypeScript, 20 unit tests, 9 Chrome tests and `npm run build` passed after the room animations, the Phaser base scene and the production settings were added. |
 | Headers | The dev server returned the `Permissions-Policy` and `X-Content-Type-Options` headers, `s-maxage=300` on `/api/space-weather`, the web manifest and a 404 page for an unknown path. |
 | Not verified | The app has not been deployed to Vercel from this repository. Confetti, launch shake and floating labels were not watched frame by frame; the base scene was viewed at 1280 × 800. |
+
+## All-Moon redesign · November 15, 2026
+
+Earlier sections of this file describe versions that included Mars missions. Those missions, the Curiosity photograph and the Mars radiation figure have been removed.
+
+| Check | Result |
+| --- | --- |
+| Tests and build | ESLint, TypeScript, 23 unit tests and 10 Chrome tests passed. They cover the harder rules of all four missions (including an expert route and a failure route for each), fact-card unlock order, card collection, the outpost water recycler with a three-star plan, the display and light message formats, the on-screen copy of the controller display during a keyboard playthrough (level name, action, result, red and green lights, walking animation) and a Moon jump that is still in the air after 0.9 seconds. |
+| Facts | Each new fact was found on its source page the same day (NASA Moon facts, NASA curation, the NASA lunar-soil plant article, NASA Moon water and ices, the Apollo 15 mission page, NASA image-library captions). |
+| Not verified | No ESP32, LCD or LED hardware was connected, so the firmware sketch is untested and the serial messages were checked only through the on-screen copy. The existing firmware written for the Node `esp32Link` helper was not available, so its message format could not be matched. Play time was estimated from action counts, not measured with children. |

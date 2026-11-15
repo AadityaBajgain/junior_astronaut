@@ -105,10 +105,10 @@ export function WeatherStation({
           <Radio size={18} /> Measured on the ground (not live)
         </h3>
         <p>
-          Nobody shares a live radiation meter from the Moon or Mars yet. These
-          are real measurements from past missions.
+          Nobody shares a live radiation meter from the Moon’s surface yet. This
+          is a real measurement from a past mission.
         </p>
-        {(["moon", "mars"] as const).map((world) => {
+        {(["moon"] as const).map((world) => {
           const d = surfaceDose[world];
           return (
             <p key={world} className="radiation-line">

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BatteryCharging,
   CloudLightning,
+  Droplet,
   FlaskConical,
   Heart,
   Map,
@@ -39,6 +40,7 @@ import {
 import type { BaseView } from "../game/base";
 import { profileStore, starNames, badges, type BadgeId } from "../game/profile";
 import { play } from "../game/sfx";
+import { device } from "../game/device";
 import { facts } from "../data/facts";
 import {
   GrownUps,
@@ -97,6 +99,7 @@ export default function Outpost() {
       storm: day.storm,
       battery: game.battery,
       food: game.food,
+      water: game.water,
       row,
       reduced: state.prefs.reducedMotion,
       paused: panel === "pause" || panel === "settings",
@@ -138,6 +141,21 @@ export default function Outpost() {
       setFresh(earned.fresh);
     }
     if (sound) play(next.status === "won" ? "win" : "ok");
+    // Green when the crew kept every heart today, red when a need was missed.
+    const hurt = next.hearts < game.hearts;
+    if (next.status === "play") {
+      device.screen(
+        "Day " + game.sol + " done",
+        hurt ? "Crew lost heart" : "Crew is safe!",
+      );
+      device.flash(hurt ? "r" : "g", 2500);
+    } else {
+      device.screen(
+        next.status === "won" ? "Outpost safe!" : "Try again!",
+        "Hearts " + next.hearts + " Sci " + next.science,
+      );
+      device.hold(next.status === "won" ? "g" : "r");
+    }
     setPanel("report");
   }
   function restart() {
@@ -150,6 +168,26 @@ export default function Outpost() {
   useEffect(() => {
     if (!panel) rows.current[row]?.scrollIntoView({ block: "nearest" });
   }, [row, panel]);
+  // The controller shows the day, the storm warning and the machine in focus.
+  useEffect(() => {
+    if (game.status !== "play" || panel === "report") return;
+    device.hold(day.storm && !plan.shield ? "r" : null);
+    device.screen(
+      "Day " + game.sol + (day.storm ? " SUN STORM!" : " calm"),
+      row < endRow
+        ? systems[row].name.split(" ")[0] +
+            " " +
+            plan[systems[row].id] +
+            "/" +
+            systems[row].max +
+            " left " +
+            left
+        : "End day? Press A",
+    );
+  }, [game.sol, game.status, day.storm, plan, row, left, panel, endRow]);
+  useEffect(() => {
+    device.screen("Outpost", "reached! Lvl 5/5");
+  }, []);
   useGameInput((press) => {
     if (panel) return false;
     if (game.status !== "play") {
@@ -193,6 +231,7 @@ export default function Outpost() {
           ? "Fan off: uses 1 air pack"
           : "Fan off and no air packs: −1 heart",
     farm: look.fed ? "Crew will eat" : "No food: −1 heart",
+    water: look.watered ? "Crew will drink" : "No water: −1 heart",
     shield:
       look.shield === "safe"
         ? "Crew protected"
@@ -206,6 +245,7 @@ export default function Outpost() {
   const bad = {
     air: look.air !== "on",
     farm: !look.fed,
+    water: !look.watered,
     shield: look.shield === "open",
     lab: false,
   };
@@ -266,6 +306,11 @@ export default function Outpost() {
                 <Salad size={14} />
                 <span className="meter-name">Food</span>
                 <b>{game.food}</b>
+              </span>
+              <span title="Drinks of water in the tank">
+                <Droplet size={14} />
+                <span className="meter-name">Water</span>
+                <b>{game.water}</b>
               </span>
               <span title="Spare air packs">
                 <Wind size={14} />
@@ -454,8 +499,9 @@ export default function Outpost() {
           </p>
           <p>
             Each day the Sun gives you <b>sparks</b> of power. Share them
-            between the air fan, the greenhouse, the storm shelter and the lab.
-            Sparks you keep charge the battery (up to {limits.battery}).
+            between the air fan, the greenhouse, the water recycler, the storm
+            shelter and the lab. Sparks you keep charge the battery (up to{" "}
+            {limits.battery}).
           </p>
           <p>
             Up and down pick a machine. Left and right take or give a spark.

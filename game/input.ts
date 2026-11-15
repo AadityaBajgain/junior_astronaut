@@ -103,6 +103,7 @@ type SerialPortLike = {
   open(options: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
   readable: ReadableStream<Uint8Array> | null;
+  writable: WritableStream<Uint8Array> | null;
 };
 type SerialLike = {
   getPorts(): Promise<SerialPortLike[]>;
@@ -120,6 +121,9 @@ function makeInput() {
   let devices: Devices = { last: "keys", pad: false, serial: "off" };
   let started = false;
   let port: SerialPortLike | null = null;
+  let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  const encoder = new TextEncoder();
+  const opened = new Set<() => void>();
   const publish = (change: Partial<Devices>) => {
     if (
       (Object.keys(change) as (keyof Devices)[]).every(
@@ -182,7 +186,10 @@ function makeInput() {
     try {
       await next.open({ baudRate: 115200 });
       port = next;
+      writer = next.writable?.getWriter() ?? null;
       publish({ serial: "on" });
+      // The ESP32 restarts when the port opens. Give it time, then redraw its screen.
+      setTimeout(() => opened.forEach((f) => f()), 2000);
       const reader = next.readable!.getReader();
       const text = new TextDecoder();
       let buffer = "";
@@ -203,6 +210,12 @@ function makeInput() {
       /* Unplugged or busy. The keyboard still works. */
     }
     held.serial.clear();
+    try {
+      writer?.releaseLock();
+    } catch {
+      /* Already released. */
+    }
+    writer = null;
     try {
       await next.close();
     } catch {
@@ -242,6 +255,18 @@ function makeInput() {
       } catch {
         /* The picker was closed. */
       }
+    },
+    /** Sends one line to the controller's display and lights. Does nothing when unplugged. */
+    send(line: string) {
+      if (!writer) return;
+      void writer.write(encoder.encode(line + "\n")).catch(() => {});
+    },
+    /** Runs after a controller connects and has had time to restart. */
+    onOpen(f: () => void) {
+      opened.add(f);
+      return () => {
+        opened.delete(f);
+      };
     },
     held: (btn: Btn) =>
       held.keys.has(btn) || held.pad.has(btn) || held.serial.has(btn),

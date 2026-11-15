@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { act, begin, type Spot } from "../game/adventure";
+import { cards } from "../data/cards";
 import {
   award,
   decodeProfile,
@@ -9,6 +10,7 @@ import {
   quizzes,
   rankOf,
   runBadges,
+  runStars,
   totalStars,
 } from "../game/profile";
 import {
@@ -28,16 +30,49 @@ const route = (id: Parameters<typeof begin>[0], moves: Spot[]) =>
 const plan = (p: Partial<Plan>): Plan => ({ ...emptyPlan, ...p });
 
 it("gives different badges to different strategies", () => {
-  expect(runBadges(route("go", ["left", "middle", "right"]))).toEqual([
-    "power-packer",
-  ]);
-  expect(runBadges(route("go", ["left", "middle", "middle", "right"]))).toEqual(
-    ["shutterbug"],
-  );
   expect(
-    runBadges(route("land", ["right", "right", "left", "middle", "middle"])),
-  ).toEqual(["night-keeper", "crater-mapper"]);
-  // Both sparks on scans: the fan pauses once, so no Night Keeper after the retry.
+    runBadges(
+      route("go", [
+        "left",
+        "left",
+        "middle",
+        "right",
+        "right",
+        "right",
+        "right",
+      ]),
+    ),
+  ).toEqual(["power-packer"]);
+  expect(
+    runBadges(
+      route("go", [
+        "left",
+        "left",
+        "middle",
+        "middle",
+        "right",
+        "right",
+        "right",
+        "right",
+      ]),
+    ),
+  ).toEqual(["shutterbug"]);
+  expect(
+    runBadges(
+      route("land", [
+        "right",
+        "right",
+        "left",
+        "middle",
+        "middle",
+        "left",
+        "right",
+        "middle",
+        "middle",
+      ]),
+    ),
+  ).toEqual(["night-keeper", "ice-hunter"]);
+  // Both sparks on scans first: the fan pauses once, so no Night Keeper.
   expect(
     runBadges(
       route("land", [
@@ -49,26 +84,56 @@ it("gives different badges to different strategies", () => {
         "left",
         "middle",
         "middle",
+        "left",
+        "middle",
+        "middle",
       ]),
     ),
-  ).toEqual([]);
-  expect(
-    runBadges(
-      route("live", [
-        "right",
-        "left",
-        "right",
-        "left",
-        "right",
-        "right",
-        "right",
-      ]),
-    ),
-  ).toEqual(["space-chef", "steady-air"]);
+  ).toEqual(["ice-hunter"]);
   expect(runBadges(route("explore", ["middle", "right", "left"]))).toEqual([
     "safe-sound",
   ]);
+  expect(
+    runBadges(
+      route("explore", ["middle", "right", "right", "middle", "right", "left"]),
+    ),
+  ).toEqual(["safe-sound", "rock-hound"]);
   expect(runBadges(route("explore", ["middle", "right"]))).toEqual([]);
+  const done = route("explore", [
+    "middle",
+    "right",
+    "right",
+    "middle",
+    "right",
+    "left",
+  ]);
+  expect(runStars(done)).toEqual([true, true]);
+  expect(runStars(route("explore", ["middle", "right", "left"]))).toEqual([
+    true,
+    false,
+  ]);
+});
+it("collects fact cards once and rewards jumping and finding them all", () => {
+  let p = award(emptyProfile(), { stage: "land", card: "moon-jump" });
+  expect(p.fresh).toEqual(["moon-jumper"]);
+  expect(award(p.profile, { stage: "land", card: "moon-jump" }).changed).toBe(
+    false,
+  );
+  expect(award(p.profile, { stage: "go", card: "not-a-card" }).changed).toBe(
+    false,
+  );
+  for (const card of cards)
+    p = award(p.profile, { stage: card.mission, card: card.id });
+  expect(p.profile.cards).toHaveLength(cards.length);
+  expect(p.profile.badges).toContain("fact-finder");
+  // A reloaded save lists cards in catalog order.
+  expect(decodeProfile(JSON.stringify(p.profile))).toEqual({
+    ...p.profile,
+    cards: cards.map((c) => c.id),
+  });
+  expect(
+    decodeProfile('{"version":1,"cards":["moon-jump","nope",3]}').cards,
+  ).toEqual(["moon-jump"]);
 });
 it("keeps stars forever, ranks up and recovers corrupt saves", () => {
   let p = emptyProfile();
@@ -105,7 +170,13 @@ it("outpost: sparks are spent once and leftovers charge a finite battery", () =>
   expect(endSol(s, plan({ air: 1, farm: 2, lab: 3 }))).toBe(s); // over budget
   expect(preview(s, emptyPlan)).toMatchObject({ saved: 3, wasted: 2 });
   const next = endSol(s, plan({ air: 1 }));
-  expect(next).toMatchObject({ sol: 2, battery: 3, food: 1, hearts: 3 });
+  expect(next).toMatchObject({
+    sol: 2,
+    battery: 3,
+    food: 1,
+    water: 1,
+    hearts: 3,
+  });
 });
 it("outpost: neglect costs hearts, a careful plan wins three stars", () => {
   // Everything into science: air packs run out, storms and hunger hit.
@@ -118,11 +189,11 @@ it("outpost: neglect costs hearts, a careful plan wins three stars", () => {
 
   const careful: Partial<Plan>[] = [
     { air: 1, farm: 2, lab: 2 },
-    { air: 1, farm: 1, lab: 1 },
+    { air: 1, farm: 1, water: 1, lab: 1 },
     { air: 1, shield: 1, lab: 1 },
     { air: 1, shield: 1 },
-    { air: 1, farm: 1, lab: 1 },
-    { air: 1, shield: 1, lab: 1 },
+    { air: 1, farm: 1, water: 1 },
+    { air: 1, shield: 1, lab: 2 },
   ];
   s = careful.reduce((state, p) => endSol(state, plan(p)), beginOutpost());
   expect(s).toMatchObject({ status: "won", hearts: 3, science: 6, sol: 6 });

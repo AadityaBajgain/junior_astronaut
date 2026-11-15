@@ -16,7 +16,10 @@ type Point = { x: number; y: number };
 type Hooks = {
   state: () => Run;
   activate: (spot: Spot) => Run;
-  photo: () => void;
+  /** A big jump started in Moon gravity. */
+  jumped: () => void;
+  /** The astronaut started or stopped walking. */
+  motion: (moving: boolean) => void;
   ready: () => void;
   failed: () => void;
 };
@@ -28,11 +31,19 @@ type Prop = {
 const height = 300;
 const poses = ["front", "walk-a", "walk-b", "side-a", "side-b", "back"];
 const clamp = Phaser.Math.Clamp;
+// Real gravity, scaled so one metre is 60 scene units. The same push-off speed
+// lifts the astronaut six times higher on the Moon and keeps them up six times longer.
+const metre = 60;
+const gravity = { earth: 9.81 * metre, moon: 1.62 * metre };
+const jumpSpeed = 104; // about 9 units high on Earth, 55 on the Moon
+const stepSpeed = 30; // the bouncy Moon walk
 const approach = (p: number) => 1 - Math.pow(1 - p, 3);
 export type WorldHandle = {
   travel: (target: Target) => void;
   /** Uses the nearest object, as the A button does. False when nothing is near. */
   interact: () => boolean;
+  /** Jumps with real gravity: Earth on the launchpad, the Moon everywhere else. */
+  jump: () => void;
   setMotion: (reduced: boolean, paused: boolean) => void;
   reset: () => void;
   destroy: () => void;
@@ -98,6 +109,11 @@ export function startWorld(
     popups: { text: Phaser.GameObjects.Text; age: number }[] = [];
     cheer = 0;
     step = 0;
+    // Height above the ground and upward speed, in scene units and units per second.
+    z = 0;
+    vz = 0;
+    wasMoving = false;
+    leaping = false;
 
     preload() {
       this.load.image("landscape", "/art/world/" + id + ".webp");
@@ -197,6 +213,15 @@ export function startWorld(
       this.paint(false);
       hooks.ready();
     }
+    jump() {
+      // A big jump can start from the ground or from a little walking hop.
+      if (!this.started || paused || reduced || this.leaping || this.busy())
+        return;
+      this.leaping = true;
+      this.vz = jumpSpeed;
+      this.z = 0.01;
+      if (id !== "go") hooks.jumped();
+    }
     interact() {
       const near = this.nearest();
       if (!near || paused) return false;
@@ -206,6 +231,8 @@ export function startWorld(
     reset() {
       if (!this.started) return;
       this.clearEffects();
+      this.z = this.vz = 0;
+      this.leaping = false;
       this.effect = null;
       this.destination = this.via = null;
       this.target = this.queued = null;
@@ -266,12 +293,9 @@ export function startWorld(
       );
     }
     targets(): Target[] {
-      return [...stations(hooks.state()).map((s) => s.spot), "photo"];
+      return stations(hooks.state()).map((s) => s.spot);
     }
     hit(x: number, y: number): Target | null {
-      const b = this.photoPoint();
-      if (Math.abs(x - b.x) < 20 && y > b.y - 34 && y < b.y + 17)
-        return "photo";
       for (const t of stations(hooks.state())) {
         const i = spots.indexOf(t.spot),
           p = this.props[i];
@@ -336,10 +360,7 @@ export function startWorld(
       this.face = "front";
       this.left = false;
       if (!t) return;
-      if (t === "photo") {
-        hooks.photo();
-        return;
-      }
+      if (t === "photo") return;
       const before = hooks.state(),
         after = hooks.activate(t);
       if (!reduced && after.steps > before.steps)
@@ -416,10 +437,31 @@ export function startWorld(
       this.cheer = 0;
     }
     animate(dt: number, moving: boolean) {
-      if (reduced) return this.clearEffects();
+      if (moving !== this.wasMoving) {
+        this.wasMoving = moving;
+        hooks.motion(moving);
+      }
+      if (reduced) {
+        this.z = this.vz = 0;
+        return this.clearEffects();
+      }
+      // Falling under gravity. Walking on the Moon is a chain of slow little hops.
+      const g = id === "go" ? gravity.earth : gravity.moon;
+      if (this.z <= 0 && moving && id !== "go") {
+        this.vz = stepSpeed;
+        this.z = 0.01;
+      }
+      if (this.z > 0) {
+        this.vz -= (g * dt) / 1000;
+        this.z += (this.vz * dt) / 1000;
+        if (this.z <= 0) {
+          this.z = this.vz = 0;
+          this.leaping = false;
+        }
+      }
       for (const m of this.motes) m.x = (m.x + (m.v * dt) / 1000 / width) % 1;
       this.cheer = Math.max(0, this.cheer - dt);
-      // Dust kicks up under boots outdoors on the Moon and Mars, not on the launchpad or indoors.
+      // Moon dust kicks up under boots outdoors, not on the launchpad or in the greenhouse.
       const step = Math.floor(this.stride / 240);
       if (moving && step !== this.step && (id === "land" || id === "explore"))
         this.puffs.push({ x: this.pos.x, y: this.pos.y, age: 0 });
@@ -532,7 +574,7 @@ export function startWorld(
       const labels = stations(s);
       const nearest = this.nearest();
       if (!reduced) {
-        if (id === "land") {
+        if (id === "land" || id === "explore") {
           // Stars twinkle in the black lunar sky. There is no air to carry dust.
           for (const m of this.motes)
             floor
@@ -541,24 +583,10 @@ export function startWorld(
                 0.25 + 0.6 * Math.abs(Math.sin(this.clock / 800 + m.p)),
               )
               .fillRect(m.p * 0.159 * width, m.y * height * 0.2, m.r, m.r);
-        } else if (id === "explore") {
-          // Fine Mars dust drifts on the thin wind outdoors.
-          for (const m of this.motes)
-            floor
-              .fillStyle(0xf0b07a, 0.32)
-              .fillRect(
-                m.x * width,
-                m.y * height + Math.sin(this.clock / 900 + m.p) * 3,
-                m.r,
-                m.r,
-              );
         }
         for (const p of this.puffs)
           floor
-            .fillStyle(
-              id === "land" ? 0xd5d9e2 : 0xdc9a66,
-              0.5 * (1 - p.age / 420),
-            )
+            .fillStyle(0xd5d9e2, 0.5 * (1 - p.age / 420))
             .fillCircle(p.x, p.y - p.age * 0.012, 2 + p.age * 0.012);
         for (const c of this.confetti)
           fx.fillStyle(c.c, Math.min(1, 3 - c.age / 560)).fillRect(
@@ -639,6 +667,7 @@ export function startWorld(
                   );
           } else {
             this.props[2].shadow.setAlpha(1);
+            cells(g, r.x, r.y + 16, s.fuel, 3);
             if (s.air || s.kit !== "none") {
               cells(
                 g,
@@ -774,8 +803,9 @@ export function startWorld(
           floor
             .lineStyle(2, 0x596054)
             .lineBetween(l.x + 10, l.y - 2, r.x, r.y - 4);
-          cells(g, m.x - 8, m.y - 8, s.battery, 2);
-          drawPlant(g, r.x, bedY, s.growth, s.planted, s.wet, s.done);
+          cells(g, m.x - 8, m.y - 8, s.battery, 3);
+          cells(g, l.x, l.y + 16, s.water, 4);
+          drawPlant(g, r.x, bedY, s.growth, s.planted, s.wet, false);
           if (s.route === "battery")
             g.fillStyle(0x182135, 0.67).fillEllipse(
               m.x + m.displayWidth * 0.17,
@@ -822,15 +852,21 @@ export function startWorld(
                 2.5,
               );
             }
-          if (s.done) {
+          // One crate of lettuce for each salad picked.
+          for (let j = 0; j < s.food; j++) {
             g.fillStyle(0xe9ad59).fillRoundedRect(
-              r.x + 15,
+              r.x + 15 + j * 20,
               r.y - 20,
               17,
               13,
               2,
             );
-            g.fillStyle(0x89cd56).fillEllipse(r.x + 23, r.y - 20, 19, 9);
+            g.fillStyle(0x89cd56).fillEllipse(
+              r.x + 23 + j * 20,
+              r.y - 20,
+              19,
+              9,
+            );
           }
           break;
         }
@@ -868,16 +904,20 @@ export function startWorld(
             if (s.camera && u < 0.55)
               sparkle(fx, m.x + 12, m.y - m.displayHeight * 0.75, 5, 0xfff3ca);
           }
-          if (s.samples > 0 && !s.done) {
-            for (let j = 0; j < 6; j++) {
-              const x = (this.clock * 0.024 + (j * width) / 6) % width;
-              fx.lineStyle(1.4, 0xffdf92, 0.8).lineBetween(
-                x,
-                20 + (j % 3) * 12,
-                x + 6,
-                26 + (j % 3) * 12,
+          // Suit air rides above the astronaut while outside.
+          if (s.away && !s.done) {
+            cells(g, this.pos.x, this.pos.y - 62 - this.z, s.air, 6);
+            if (
+              s.air <= 2 &&
+              (reduced || Math.floor(this.clock / 350) % 2 === 0)
+            )
+              sparkle(
+                fx,
+                this.pos.x + 30,
+                this.pos.y - 58 - this.z,
+                4,
+                0xff8a5c,
               );
-            }
           }
           if (s.done) {
             g.lineStyle(2, 0x88f2d3).strokeEllipse(
@@ -930,7 +970,8 @@ export function startWorld(
           b.y + (reduced ? 0 : Math.sin(this.clock / 560) * 1.5),
         )
         .setDepth(b.y);
-      this.photoTag.setPosition(b.x, b.y + 2);
+      this.photoTag.setPosition(b.x, b.y + 2).setVisible(false);
+      this.buddy.setVisible(false);
       // A bouncing button hint floats over the thing the A button would use.
       const hint = this.target || this.busy() ? null : nearest;
       if (hint) {
@@ -981,11 +1022,15 @@ export function startWorld(
           x,
           y -
             (moving && !reduced && alt ? 1 : 0) -
+            this.z -
             (this.cheer > 0 ? Math.abs(Math.sin(this.cheer / 150)) * 8 : 0),
         )
         .setDepth(ride ? 340 : y + 0.5)
         .setVisible(!onboard);
-      this.shadow.setPosition(x, this.pos.y).setVisible(!onboard && !ride);
+      this.shadow
+        .setPosition(x, this.pos.y)
+        .setScale(1 / (1 + this.z / 30))
+        .setVisible(!onboard && !ride);
       if (this.target) {
         const a = this.foot(this.target);
         floor.lineStyle(2, 0xffed9c, 0.9).strokeEllipse(a.x, a.y, 13, 5);
@@ -1021,6 +1066,7 @@ export function startWorld(
   observer.observe(host);
   return {
     travel: (t) => room.visit(t),
+    jump: () => room.jump(),
     interact: () => room.started && room.interact(),
     setMotion: (r, p) => {
       reduced = r;

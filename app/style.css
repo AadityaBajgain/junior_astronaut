@@ -991,6 +991,138 @@ dialog .primary:focus-visible {
   text-decoration: underline;
   white-space: nowrap;
 }
+.game-case {
+  position: relative;
+}
+.gravity-chip {
+  font: 600 calc(11px * var(--factor)) / 1.2 var(--body);
+  color: #c9d5e2;
+  border: 1px solid #41516a;
+  border-radius: 20px;
+  padding: 3px 9px;
+  letter-spacing: 0;
+}
+.fact-toast {
+  position: absolute;
+  z-index: 3;
+  top: 54px;
+  right: 12px;
+  width: min(430px, calc(100% - 24px));
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 2px solid var(--mint);
+  border-radius: 10px;
+  background: #0f1b2cf2;
+  box-shadow: 0 8px 26px #0008;
+  animation: slide-in 0.35s ease-out;
+}
+.fact-toast-photo {
+  position: relative;
+  flex: 0 0 132px;
+  min-height: 118px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #060a12;
+}
+.fact-toast-photo img {
+  object-fit: cover;
+}
+.fact-toast h3 {
+  font-size: 1.08em;
+  font-weight: 700;
+  color: #ffdb89;
+  margin: 5px 0 3px;
+  line-height: 1.2;
+}
+.fact-toast p {
+  font-size: 0.9em;
+  line-height: 1.35;
+}
+.fact-toast small {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.68em;
+  color: #a9b8c9;
+  line-height: 1.3;
+}
+.album-card {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #36475b;
+}
+.album-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #4a5b72;
+  border-radius: 6px;
+  color: #93a2b6;
+  font-size: 0.9em;
+}
+.lcd-mirror {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.lcd-screen {
+  display: grid;
+  padding: 4px 7px;
+  min-width: 17ch;
+  min-height: 2.5em;
+  font:
+    12px/1.25 ui-monospace,
+    monospace;
+  color: #0c2a12;
+  background: #a9d94f;
+  border: 2px solid #33401c;
+  border-radius: 4px;
+  text-align: left;
+  white-space: pre;
+}
+.lcd-screen span {
+  display: block;
+  min-height: 1.25em;
+}
+.lcd-led {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid #0006;
+  background: #33402f;
+}
+.lcd-led.red {
+  background: #4a2c2c;
+}
+.lcd-led.green.on {
+  background: #5dff7a;
+  box-shadow: 0 0 9px #5dff7a;
+}
+.lcd-led.red.on {
+  background: #ff5b4d;
+  box-shadow: 0 0 9px #ff5b4d;
+}
+@keyframes slide-in {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+@media (max-width: 760px) {
+  .fact-toast {
+    position: static;
+    width: auto;
+    margin: 8px;
+  }
+  .fact-toast-photo {
+    flex-basis: 96px;
+  }
+  .lcd-mirror {
+    display: none;
+  }
+}
 /* Outpost Commander */
 .oops {
   min-height: 100svh;

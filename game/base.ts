@@ -10,15 +10,16 @@ export type BaseView = {
   storm: boolean;
   battery: number;
   food: number;
-  row: number; // 0 air, 1 farm, 2 shield, 3 lab, 4 end of day
+  water: number;
+  row: number; // 0 air, 1 farm, 2 water, 3 shield, 4 lab, 5 end of day
   reduced: boolean;
   paused: boolean;
 };
 const height = 200;
-// panel, cabin (air), bed (farm), shelter, dish (lab)
-const art = ["panel", "cabin", "bed", "shelter", "dish"] as const;
-const spots = [0.09, 0.29, 0.5, 0.7, 0.9];
-const sizes = [50, 62, 66, 62, 52];
+// panel, cabin (air), bed (farm), tank (water), shelter, dish (lab)
+const art = ["panel", "cabin", "bed", "tank", "shelter", "dish"] as const;
+const spots = [0.07, 0.23, 0.4, 0.56, 0.73, 0.91];
+const sizes = [48, 60, 62, 50, 60, 50];
 const poses = ["front", "walk-a", "walk-b", "side-a", "side-b"];
 
 export function startBase(host: HTMLElement, view: () => BaseView) {
@@ -111,9 +112,16 @@ export function startBase(host: HTMLElement, view: () => BaseView) {
       const at = (i: number) => this.props[i];
       const top = (i: number) => at(i).y - at(i).displayHeight;
       // Power flows from the solar panel to every machine that has sparks.
-      const counts = [0, v.plan.air, v.plan.farm, v.plan.shield, v.plan.lab];
-      const limits = [0, 1, 2, 1, 3];
-      for (let i = 1; i < 5; i++) {
+      const counts = [
+        0,
+        v.plan.air,
+        v.plan.farm,
+        v.plan.water,
+        v.plan.shield,
+        v.plan.lab,
+      ];
+      const limits = [0, 1, 2, 1, 1, 3];
+      for (let i = 1; i < 6; i++) {
         cells(f, at(i).x, top(i) - 13, counts[i], limits[i]);
         if (!counts[i]) continue;
         g.lineStyle(1.5, 0x8a7a3c, 0.8).lineBetween(
@@ -168,18 +176,30 @@ export function startBase(host: HTMLElement, view: () => BaseView) {
           .fillRect(bed.x - 20 + k * 11, gy + 9, 9, 7)
           .fillStyle(0x2f6b3a)
           .fillRect(bed.x - 20 + k * 11, gy + 9, 9, 2);
+      // Water recycler: clean drops fall while it runs; the tank shows the drinks left.
+      const tank = at(3);
+      cells(f, tank.x, gy + 10, v.water, 4);
+      if (v.plan.water)
+        for (let k = 0; k < 3; k++) {
+          const u = (t / 900 + k / 3) % 1;
+          f.fillStyle(0x58dbff, 1 - u).fillCircle(
+            tank.x + 16,
+            tank.y - tank.displayHeight * 0.7 + u * 22,
+            2,
+          );
+        }
       // Lab dish: signal rings while it works.
       if (v.plan.lab)
         for (let k = 0; k < v.plan.lab; k++) {
           const u = (t / 1200 + k / v.plan.lab) % 1;
           f.lineStyle(1.5, 0xc5abff, 1 - u).strokeCircle(
-            at(4).x - 6,
-            top(4) + 8,
+            at(5).x - 6,
+            top(5) + 8,
             4 + u * 20,
           );
         }
       // Sun storm: fast particles are invisible in real life. The game draws them.
-      const shelter = at(3);
+      const shelter = at(4);
       if (v.storm) {
         for (const s of this.streaks) {
           const u = (s.y + (t / 1400) * s.v) % 1;
@@ -207,18 +227,18 @@ export function startBase(host: HTMLElement, view: () => BaseView) {
           f.fillStyle(0xff8a5c)
             .fillTriangle(
               shelter.x,
-              top(3) - 30,
+              top(4) - 30,
               shelter.x - 8,
-              top(3) - 16,
+              top(4) - 16,
               shelter.x + 8,
-              top(3) - 16,
+              top(4) - 16,
             )
             .fillStyle(0x1b1020)
-            .fillRect(shelter.x - 1, top(3) - 26, 2, 6)
-            .fillRect(shelter.x - 1, top(3) - 19, 2, 2);
+            .fillRect(shelter.x - 1, top(4) - 26, 2, 6)
+            .fillRect(shelter.x - 1, top(4) - 19, 2, 2);
       }
       // The astronaut walks to the machine the player is looking at.
-      const goal = (v.row < 4 ? at(v.row + 1).x : at(0).x) + 22;
+      const goal = (v.row < 5 ? at(v.row + 1).x : at(0).x) + 22;
       if (this.crewX < 0 || v.reduced) this.crewX = goal;
       const gap = goal - this.crewX;
       const moving = Math.abs(gap) > 1 && !v.paused;
