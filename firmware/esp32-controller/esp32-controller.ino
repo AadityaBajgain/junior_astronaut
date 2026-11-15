@@ -1,4 +1,4 @@
-// JuniorAstronaut controller for an ESP32 with buttons, a 16x2 I2C LCD and two LEDs.
+// MoonSprout controller for an ESP32 with buttons, a 16x2 I2C LCD and two LEDs.
 //
 // Wiring
 //   Buttons: each button connects its GPIO pin to GND (internal pull-ups, no resistors).
@@ -89,7 +89,7 @@ void setup() {
   pinMode(RED_LED, OUTPUT);
   lcd.init();
   lcd.backlight();
-  showRow(0, "JuniorAstronaut");
+  showRow(0, "MoonSprout");
   showRow(1, "Connect in game");
 }
 

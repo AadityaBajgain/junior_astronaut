@@ -1283,10 +1283,10 @@ dialog .primary:focus-visible {
   }
 }
 @media (max-width: 540px) {
-  .hub .toolbar button span {
+  :is(.hub, .mission-room) .toolbar button span {
     display: none;
   }
-  .hub .toolbar button {
+  :is(.hub, .mission-room) .toolbar button {
     width: 42px;
     padding: 0;
   }
@@ -1379,6 +1379,98 @@ dialog .primary:focus-visible {
   }
   .outpost .room-heading .back-link {
     display: none;
+  }
+}
+.outpost-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+/* On anything bigger than a phone the map is the whole screen; everything else floats on it. */
+@media (min-width: 761px) and (min-height: 600px) {
+  .hub .chart-frame {
+    pointer-events: auto;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 0;
+  }
+  .hub .topbar {
+    position: relative;
+    z-index: 2;
+    border-bottom: 0;
+    background: linear-gradient(#070d1ae6, #070d1a00);
+  }
+  .hub .hub-main {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+    padding-bottom: 12px;
+  }
+  .hub .hub-main > *:not(.chart-frame) {
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+  }
+  .hub .hub-heading {
+    pointer-events: none;
+    text-shadow: 0 2px 8px #050913;
+  }
+  .hub .hub-heading h1 {
+    font-size: clamp(18px, 1.8vw, 26px);
+  }
+  /* Whatever follows the map sits at the bottom of the screen. */
+  .hub .chart-frame + * {
+    margin-top: auto;
+  }
+  .hub .outpost-card,
+  .hub .weather-chip,
+  .hub .outpost-locked {
+    width: min(860px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+    background-color: #101a2ce6;
+    backdrop-filter: blur(3px);
+  }
+  .hub .outpost-locked {
+    width: fit-content;
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+  .hub .map-astronaut {
+    z-index: 1;
+    position: fixed;
+    left: 26px;
+    bottom: 22px;
+    height: 104px;
+    animation: floaty 3s ease-in-out infinite;
+  }
+  /* Missions: edge to edge, with the title on one compact line. */
+  .room .wrap {
+    width: calc(100% - 28px);
+  }
+  .room .room-heading {
+    margin-bottom: 8px;
+  }
+  .room .room-heading > div {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .room .room-heading h1 {
+    font-size: clamp(15px, 1.5vw, 22px);
+    margin: 0;
+  }
+  .room .room-main {
+    padding: 8px 0 10px;
   }
 }
 @container (max-width:679px) {
@@ -1552,5 +1644,233 @@ dialog .primary:focus-visible {
   * {
     scroll-behavior: auto;
     animation: none !important;
+  }
+}
+
+/* Like the mission map, each training room puts its controls over the world. */
+.mission-room {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: visible;
+}
+.mission-room .playfield {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.mission-room .playfield canvas {
+  box-shadow: none;
+}
+.mission-room .topbar {
+  background: linear-gradient(#070d1aeb, #070d1a66);
+  border: 0;
+}
+.mission-room .room-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 max(10px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+.mission-world {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+.mission-console {
+  width: min(988px, 100%);
+  margin-inline: auto;
+  padding: 2px 4px 4px;
+  max-height: 43dvh;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+.mission-room .playfield,
+.mission-room .room-main :is(button, a) {
+  pointer-events: auto;
+}
+.mission-room .room-heading {
+  align-items: center;
+  text-shadow:
+    0 1px 4px #050916,
+    0 1px 12px #050916;
+  margin-bottom: 6px;
+}
+.mission-room .room-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 14px;
+  padding: 5px 12px;
+  background: #0e1a2bdf;
+  border-radius: 7px;
+}
+.mission-room .room-heading h1 {
+  margin: 0;
+}
+.mission-room .game-strip {
+  background: #101a2ce8;
+  border: 1px solid #596b83;
+  border-radius: 7px;
+  min-height: 34px;
+}
+.mission-stage {
+  position: relative;
+  flex: 1;
+  min-height: min(210px, 23dvh);
+}
+.mission-stage .fact-toast {
+  top: 8px;
+  right: 0;
+  margin: 0;
+  position: absolute;
+}
+.mission-room :is(.dialogue-bar, .action-row, .hints, .radio-link) {
+  width: min(980px, 100%);
+  margin-inline: auto;
+}
+.mission-room .dialogue-bar {
+  border: 2px solid #485267;
+  border-radius: 8px;
+  box-shadow: 0 3px 0 #07101a80;
+  padding: 9px 14px;
+  min-height: 62px;
+}
+.mission-room .action-row {
+  margin-top: 6px;
+}
+.mission-room .station-action {
+  background-color: #152237f2;
+}
+.mission-room .station-action:hover,
+.mission-room .station-action:focus-visible {
+  background-color: #26374b;
+}
+.mission-room .hints,
+.mission-room .radio-link {
+  width: fit-content;
+  max-width: 100%;
+  background-color: #101a2ced;
+  border-radius: 7px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 3px 12px;
+}
+@media (max-width: 760px) {
+  .mission-room .room-heading > div {
+    display: block;
+    padding: 4px 9px;
+  }
+  .mission-room .room-heading .back-link {
+    min-height: 25px;
+  }
+  .mission-room .dialogue-bar {
+    padding: 8px;
+  }
+  .mission-stage {
+    min-height: min(150px, 16dvh);
+  }
+  .mission-stage .fact-toast {
+    max-width: 100%;
+  }
+}
+@media (max-width: 540px) {
+  .mission-room .photo-button {
+    flex-shrink: 0;
+  }
+  .mission-room .photo-button .fact-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@media (max-width: 540px) and (max-height: 720px) {
+  .mission-room .room-heading .back-link {
+    display: none;
+  }
+  .mission-room .brand {
+    font-size: 10px;
+  }
+  .mission-console {
+    max-height: 40dvh;
+  }
+}
+@media (max-width: 360px) and (max-height: 600px) {
+  .mission-room .top-inner {
+    gap: 4px;
+  }
+  .mission-console {
+    max-height: 35dvh;
+  }
+}
+
+/* In a short landscape window, keep the actions beside the walkable floor. */
+@media (orientation: landscape) and (min-width: 550px) and (max-height: 599px) {
+  .mission-room .wrap {
+    width: calc(100% - 20px);
+  }
+  .mission-room .top-inner {
+    min-height: 46px;
+  }
+  .mission-room .room-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(215px, 31%, 300px);
+    grid-template-rows: auto 1fr;
+    gap: 4px 10px;
+    padding-block: 3px max(5px, env(safe-area-inset-bottom));
+  }
+  .mission-room .room-heading {
+    grid-area: 1 / 1;
+    margin: 0;
+  }
+  .mission-room .room-heading > div {
+    display: flex;
+    gap: 2px 8px;
+  }
+  .mission-room .room-heading h1 {
+    font-size: 0.95em;
+  }
+  .mission-world {
+    grid-area: 2 / 1;
+  }
+  .mission-room .game-strip {
+    padding: 4px 8px;
+  }
+  .mission-stage {
+    min-height: 120px;
+  }
+  .mission-console {
+    grid-area: 1 / 2 / 3;
+    align-self: end;
+    max-height: calc(100dvh - 60px);
+  }
+  .mission-room .dialogue-bar {
+    padding: 8px;
+    gap: 6px;
+  }
+  .mission-room .nova-portrait {
+    display: none;
+  }
+  .mission-room .action-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mission-room .station-action,
+  .mission-room .next-mission {
+    min-height: 44px;
+    padding: 4px 8px;
+  }
+  .mission-room .hints {
+    gap: 3px 8px;
   }
 }

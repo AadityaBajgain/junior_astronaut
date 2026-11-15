@@ -43,7 +43,7 @@ LED|R|1   LED|R|0         red LED on / off
 
 | When | Display | Lights |
 | --- | --- | --- |
-| Title screen | `JuniorAstronaut` / `Press A to start` | off |
+| Title screen | `MoonSprout` / `Press A to start` | off |
 | Mission map | `Mission map` / `3/15 stars` | off |
 | A level opens | level name / `reached! Lvl 2/5` | off |
 | The astronaut walks | level or action name / a walking animation (`Moving  \o  >>`) that changes about four times a second | unchanged |

@@ -2,6 +2,42 @@ import type Phaser from "phaser";
 import type { MissionId } from "./missions";
 import type { Spot } from "./adventure";
 
+/** Added to every art address. Change it when a picture is replaced, so browsers fetch the new one. */
+export const artVersion = "?v=moon2";
+/** A round Earth for the Moon's black sky: oceans, land, cloud and a night side. */
+export function drawEarth(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  r: number,
+) {
+  g.fillStyle(0x8fd3ff, 0.16).fillCircle(x, y, r + 3); // thin glow of air
+  g.fillStyle(0x2a6fd6).fillCircle(x, y, r);
+  g.fillStyle(0x4f93ea).fillCircle(x - r * 0.25, y - r * 0.28, r * 0.62);
+  // land
+  g.fillStyle(0x3fa55b)
+    .fillEllipse(x - r * 0.3, y - r * 0.18, r * 0.62, r * 0.5)
+    .fillEllipse(x - r * 0.05, y + r * 0.34, r * 0.4, r * 0.52)
+    .fillEllipse(x + r * 0.38, y - r * 0.3, r * 0.36, r * 0.3);
+  g.fillStyle(0x7cc46a).fillEllipse(
+    x - r * 0.36,
+    y - r * 0.24,
+    r * 0.3,
+    r * 0.22,
+  );
+  // cloud bands
+  g.fillStyle(0xffffff, 0.85)
+    .fillEllipse(x - r * 0.1, y - r * 0.55, r * 0.9, r * 0.16)
+    .fillEllipse(x + r * 0.2, y + r * 0.08, r * 0.75, r * 0.13)
+    .fillEllipse(x - r * 0.35, y + r * 0.6, r * 0.5, r * 0.12);
+  // night side: the far edge fades into shadow, which makes the ball look round
+  for (let i = 0; i < 4; i++)
+    g.lineStyle(r * 0.16, 0x050a1c, 0.2 + i * 0.12)
+      .beginPath()
+      .arc(x, y, r * (0.94 - i * 0.02), -0.9 + i * 0.12, 1.5 - i * 0.12)
+      .strokePath();
+  g.lineStyle(1, 0xbfe6ff, 0.7).strokeCircle(x, y, r);
+}
 export const spots: Spot[] = ["left", "middle", "right"];
 export const equipment: Record<MissionId, [string, string, string]> = {
   go: ["air", "gear", "rocket"],

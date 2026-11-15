@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "JuniorAstronaut",
-    short_name: "JuniorAstronaut",
+    name: "MoonSprout",
+    short_name: "MoonSprout",
     description:
       "Go, Land, Live, Explore: an astronaut training game for ages 7 to 12 that uses real NASA data.",
     start_url: "/",

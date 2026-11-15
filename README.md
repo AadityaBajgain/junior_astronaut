@@ -1,4 +1,4 @@
-# JuniorAstronaut
+# MoonSprout
 
 A Moon mission game for children aged 7–12, built for the NASA Space Apps Junior Astronaut challenge. The player packs and launches a rocket, lands and powers a Moon base, grows food in Moon soil, drives a lunar rover, and finally commands the whole outpost through six days of real Sun storms. Real NASA photos and facts pop up by themselves as tasks are finished. The whole game plays on a keyboard, a gamepad or a home-made ESP32 controller with its own display and lights. A mouse or touch screen is optional.
 
@@ -40,6 +40,8 @@ Everything happens on the way to the Moon or on it. Each mission is a Phaser sce
 | **Explore** · Moon rover trek | Drive out, collect up to three rocks, recharge the rover, get home                                                                       | Every job outside uses suit air (6); rocks and driving use rover power (4); charging trades air for power; running out of air is a safe automatic ride home with one rock |
 | **Outpost Commander**         | Six days at a Moon base. Share each day's sparks between the air fan, greenhouse, water recycler, storm shelter and lab                  | Battery holds 3; the crew eats and drinks every day; real storm days need the shelter; missed needs cost a crew heart                                                     |
 
+The map fills the whole screen, with the toolbar, space weather strip and astronaut floating over it. Outpost Commander appears on the map only after Go, Land, Live and Explore have each been finished once. A round Earth hangs in the black sky of the Moon scenes.
+
 **Moon gravity.** Jumping uses real numbers: the same push-off speed under 9.81 m/s² on the launchpad and 1.62 m/s² on the Moon. A Moon jump rises six times higher and lasts six times longer, and walking on the Moon is a chain of slow hops. The first Moon jump unlocks the gravity fact card.
 
 **Fact cards.** Thirteen cards appear automatically, each when a task is completed (packing air, filling the tank, touching down, the first scan, the first sprout, the first rock, and so on). A card shows an archive NASA photo, one sentence for children, the photo caption and credit. The **Fact cards** button and the pause menu open the album, where each card links to its source. `data/cards.ts` holds them.
@@ -80,7 +82,7 @@ The project is a standard Next.js app and needs no environment variables, API ke
 - `game/input.ts` turns the keyboard, the Gamepad API and ESP32 serial lines into the same eight buttons. `game/device.ts` formats what the game sends back to the controller's display and lights.
 - `game/space-weather.ts` and `app/api/space-weather/route.ts` validate the DONKI catalog and the live GOES reading server-side.
 - `components/` holds the map (`FlightDeck`), mission screen (`AdventureRoom`), outpost screen (`Outpost`), fact album and pop-up (`Science`), weather station (`SpaceWeather`) and shared controls.
-- `public/art/world/` holds the game illustrations. The Moon greenhouse, rover trek, rock and garden-bed art were recoloured from earlier artwork to lunar grey. `public/art/nasa/` holds the NASA archive photographs used on the cards.
+- `public/art/world/` holds the game illustrations. Art is served with a one-day browser cache, so every art address carries `artVersion` from `game/world-art.ts`; change it whenever a picture is replaced under the same file name. The Moon greenhouse, rover trek, rock and garden-bed art were recoloured from earlier artwork to lunar grey. `public/art/nasa/` holds the NASA archive photographs used on the cards.
 - `firmware/esp32-controller/` is an example Arduino sketch for buttons, an I2C LCD and two LEDs.
 - Fonts are the bundled Press Start 2P and Space Grotesk (SIL Open Font License). Interface icons are Lucide (ISC).
 
