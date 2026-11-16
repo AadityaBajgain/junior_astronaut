@@ -426,7 +426,7 @@ export default function AdventureRoom({ id }: { id: MissionId }) {
     >
       <header className="topbar">
         <div className="wrap top-inner">
-          <Link href="/" aria-label="MoonSprout mission map">
+          <Link href="/" aria-label="JuniorAstronaut mission map">
             <Brand />
           </Link>
           <div className="toolbar">

@@ -3,7 +3,7 @@ import type { MissionId } from "./missions";
 
 type Journal = { version: 1; cargo: Cargo; actions: Spot[] };
 type Session = { run: Run; journal: Journal };
-const key = (id: MissionId) => "MoonSprout.room.v1." + id;
+const key = (id: MissionId) => "JuniorAstronaut.room.v1." + id;
 const fresh = (id: MissionId, cargo: Cargo): Session => ({
   run: begin(id, cargo),
   journal: { version: 1, cargo, actions: [] },

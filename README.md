@@ -1,4 +1,4 @@
-# MoonSprout
+# JuniorAstronaut
 
 A Moon mission game for children aged 7–12, built for the NASA Space Apps Junior Astronaut challenge. The player packs and launches a rocket, lands and powers a Moon base, grows food in Moon soil, drives a lunar rover, and finally commands the whole outpost through six days of real Sun storms. Real NASA photos and facts pop up by themselves as tasks are finished. The whole game plays on a keyboard, a gamepad or a home-made ESP32 controller with its own display and lights. A mouse or touch screen is optional.
 

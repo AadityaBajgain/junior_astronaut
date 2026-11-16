@@ -180,7 +180,7 @@ export function award(p: Profile, a: Award) {
   return { profile: changed ? next : p, fresh, changed };
 }
 
-export const profileKey = "MoonSprout.profile.v1";
+export const profileKey = "JuniorAstronaut.profile.v1";
 function makeProfileStore() {
   const empty = emptyProfile();
   let profile = empty,

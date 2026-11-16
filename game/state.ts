@@ -1,6 +1,6 @@
 import { missions, type MissionId } from "./missions";
 
-export const saveKey = "MoonSprout.map.v1";
+export const saveKey = "JuniorAstronaut.map.v1";
 export const defaults = {
   sound: false,
   largeText: false,
